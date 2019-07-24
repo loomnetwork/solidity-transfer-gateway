@@ -9,6 +9,7 @@ GO_ETHEREUM_DIR = $(GOPATH)/src/github.com/ethereum/go-ethereum
 SSHA3_DIR = $(GOPATH)/src/github.com/miguelmota/go-solidity-sha3
 HASHICORP_DIR = $(GOPATH)/src/github.com/hashicorp/go-plugin
 
+GO_LOOM_GIT_REV = HEAD
 # use a modified ethereum git rev
 ETHEREUM_GIT_REV = 1fb6138d017a4309105d91f187c126cf979c93f9
 # use go-plugin we get 'timeout waiting for connection info' error
@@ -61,6 +62,8 @@ abigen:
 	cat ./dappchain/build/contracts/EthCoinIntegrationTest.json | jq '.bytecode' -j > ./src/ethcontract/EthCoinIntegrationTest.bin
 	cat ./dappchain/build/contracts/TRXToken.json | jq '.abi' > ./src/ethcontract/TRXToken.abi
 	cat ./dappchain/build/contracts/TRXToken.json | jq '.bytecode' -j > ./src/ethcontract/TRXToken.bin
+	cat ./dappchain/build/contracts/SampleBEP2Token.json | jq '.abi' > ./src/ethcontract/SampleBEP2Token.abi
+	cat ./dappchain/build/contracts/SampleBEP2Token.json | jq '.bytecode' -j > ./src/ethcontract/SampleBEP2Token.bin
 
 $(GO_ETHEREUM_DIR):
 	git clone -q https://github.com/loomnetwork/go-ethereum.git $@
@@ -70,6 +73,7 @@ $(SSHA3_DIR):
 
 deps: $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 	go get \
+		github.com/golang/dep/cmd/dep \
 		github.com/gogo/protobuf/jsonpb \
 		github.com/gogo/protobuf/proto \
 		github.com/loomnetwork/go-loom \
@@ -84,14 +88,22 @@ deps: $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 		github.com/prometheus/client_golang/prometheus \
 		github.com/phonkee/go-pubsub \
 		github.com/gorilla/websocket \
-		github.com/loomnetwork/yubihsm-go \
-		github.com/btcsuite/btcd
-	# cd $(GOPATH)/src/github.com/loomnetwork/go-loom && git checkout fix-split-sigs # only use when testing new go-loom features
+		github.com/certusone/yubihsm-go \
+		github.com/btcsuite/btcd \
+		github.com/zondax/hid
+
+	cd $(GOPATH)/src/github.com/loomnetwork/go-loom && git checkout master && git pull && git checkout $(GO_LOOM_GIT_REV)
+	# cd $(PLUGIN_DIR) && git checkout binance-types && git pull && git checkout $(GO_LOOM_GIT_REV)
 	cd $(GO_ETHEREUM_DIR) && git checkout master && git pull && git checkout $(ETHEREUM_GIT_REV)
 	cd $(GOLANG_PROTOBUF_DIR) && git checkout v1.1.0
 	cd $(HASHICORP_DIR) && git checkout $(HASHICORP_GIT_REV)
 	cd $(GRPC_DIR) && git checkout v1.20.1
 	cd $(GENPROTO_DIR) && git checkout master && git pull && git checkout $(GENPROTO_GIT_REV)
+
+vendor-deps:
+	ln -f -s `pwd` $(GOPATH)/src/github.com/loomnetwork/transfer-gateway-v2
+	cd $(GOPATH)/src/github.com/loomnetwork/transfer-gateway-v2/src/deployer && dep ensure -vendor-only
+	cd $(GOPATH)/src/github.com/loomnetwork/transfer-gateway-v2/src/gateway && dep ensure -vendor-only
 
 clean:
 	go clean

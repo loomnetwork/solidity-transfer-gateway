@@ -26,7 +26,7 @@
 set -exo pipefail
 
 # Loom build to use for tests when running on Jenkins, this build will be automatically downloaded.
-BUILD_NUMBER=build-1046
+BUILD_NUMBER=build-1200
 
 # These can be toggled via the options below, only useful when running the script locally.
 DOWNLOAD_LOOM=false
@@ -39,6 +39,7 @@ SKIP_TESTS=false
 WAIT_ON_EXIT=false
 ETHEREUM_NETWORK="ganache"
 TRON_NETWORK="shasta"
+BINANCE_NETWORK="bnbtestnet"
 DAPPCHAIN_NETWORK="local"
 DEPLOY_TO_DAPPCHAIN=false
 DEPLOY_TO_ETHEREUM=false
@@ -48,6 +49,8 @@ ORACLE_WAIT_TIME=10
 TEST_TO_RUN="ALL"
 MAP_CONTRACTS=false
 DAPPCHAIN_NODE_COUNT=1
+RESET_LATEST_BLOCK_NUM=false
+SET_TRANSFER_FEE=false
 
 # Scripts options:
 # -i / --init    - Reinitializes the DAppChain for a fresh test run.
@@ -68,6 +71,7 @@ while [[ "$#" > 0 ]]; do case $1 in
   --wait-on-exit) WAIT_ON_EXIT=true; shift;;
   --ethereum-network) ETHEREUM_NETWORK="$2"; shift; shift;;
   --tron-network) TRON_NETWORK="$2"; shift; shift;;
+  --binance-network) BINANCE_NETWORK="$2"; shift; shift;;
   --dappchain-network) DAPPCHAIN_NETWORK="$2"; shift; shift;;
   --deploy-dappchain-contracts) DEPLOY_TO_DAPPCHAIN=true; shift;;
   --gateway-type) GATEWAY_TYPE="$2"; shift; shift;;
@@ -77,6 +81,8 @@ while [[ "$#" > 0 ]]; do case $1 in
   --enable-hsm) ENABLE_HSM=true; shift;;
   --hsmkey-address) HSM_ADDRESS="$2"; shift; shift;;
   --run-test) TEST_TO_RUN="$2"; shift; shift;;
+  --reset-latest-block-num) RESET_LATEST_BLOCK_NUM=true; shift;;
+  --set-transfer-fee) SET_TRANSFER_FEE=true; shift;;
   *) echo "Unknown parameter: $1"; shift; shift;;
 esac; done
 
@@ -95,6 +101,9 @@ fi
 echo "Reinitializing DAppChain? $INIT_DAPPCHAIN"
 echo "Launching DAppChain? $LAUNCH_DAPPCHAIN"
 echo "Removing LOOM_DIR on exit? $REMOVE_LOOM_DIR"
+
+# Directory containing eth contracts
+CONTRACT_DIR=`pwd`/src/ethcontract
 
 # Spins up a Ganache node & a DAppChain node
 function start_chains {
@@ -157,6 +166,16 @@ function start_chains {
         sleep 10
     fi
 
+    if [[ "$RESET_LATEST_BLOCK_NUM" == true ]]; then
+        echo "Resetting latest block number on gateway"
+        reset_latest_block_num
+    fi
+
+    if [[ "$SET_TRANSFER_FEE" == true ]]; then
+        echo "Setting trasfer fee"
+        set_transfer_fee
+    fi
+
     if [[ "$LAUNCH_ORACLE" == true ]]; then
         cd $LOOM_DIR
         $LOOM_ORACLE &
@@ -174,16 +193,16 @@ function start_chains {
 function stop_chains {
     if [[ "$LAUNCH_ORACLE" == true ]]; then
         echo "exiting oracle-pid(${oracle_pid})"
+        kill -9 "${oracle_pid}" &> /dev/null || true
         echo "exiting loomcoin-oracle-pid(${loomcoin_oracle_pid})"
-        kill -9 "${oracle_pid}" &> /dev/null
-        kill -9 "${loomcoin_oracle_pid}" &> /dev/null
+        kill -9 "${loomcoin_oracle_pid}" &> /dev/null || true
     fi
-    
+
     if [[ "$LAUNCH_GANACHE" == true ]]; then
         echo "exiting ganache-pid(${ganache_pid})"
-        kill -9 "${ganache_pid}" &> /dev/null
+        kill -15 "${ganache_pid}" &> /dev/null
     fi
-    
+
     if [[ "$LAUNCH_DAPPCHAIN" == true ]]; then
         echo "exiting loom-pid(${loom_pid})"
         kill -15 "${loom_pid}" &> /dev/null
@@ -200,11 +219,13 @@ function init_dappchain {
         cp $E2E_CONFIG_DIR/oracle_eth_priv.key ./oracle_eth_priv.key
     elif [[ "$GATEWAY_TYPE" == "tron-gateway" ]]; then
         cp $E2E_CONFIG_DIR/oracle_tron_priv.key ./oracle_tron_priv.key
+    elif [[ "$GATEWAY_TYPE" == "binance-gateway" ]]; then
+        cp $E2E_CONFIG_DIR/oracle_binance_priv.key ./oracle_binance_priv.key
     fi
     
     GENESIS_JSON="$E2E_CONFIG_DIR/genesis.json"
     if [[ "$ENABLE_HSM" == true ]]; then
-        cp $E2E_CONFIG_DIR/loom.hsm.yml ./loom.yml
+        cp $E2E_CONFIG_DIR/loom.hsm.=yml ./loom.yml
         cp $E2E_CONFIG_DIR/oracle_eth_priv_hsm.key ./oracle_eth_priv_hsm.key
         cp $E2E_CONFIG_DIR/oracle_priv_hsm.key ./oracle_priv_hsm.key
 
@@ -221,18 +242,22 @@ function init_dappchain {
     rm -rf chaindata
 
     if (( DAPPCHAIN_NODE_COUNT > 1 )); then
-        # Disable the in-process TG Oracle since we only want one to be running.
-        sed -i "s/OracleEnabled\s*:.*$/OracleEnabled: false/m" $LOOM_DIR/loom.yml
+
+        # Use loom.cluster.yml as a base configs for the cluster
+        cp $E2E_CONFIG_DIR/loom.cluster.yml $LOOM_DIR/loom.cluster.yml
 
         $LOOM_VALIDATORS_TOOL new \
         -g $GENESIS_JSON \
-        -c loom.yml \
+        -c loom.cluster.yml \
         --base-dir `pwd` \
         --contract-dir "" \
         --name cluster \
         --loom-path $LOOM_BIN \
         --log-app-db \
         --validators $DAPPCHAIN_NODE_COUNT
+
+        # Run oralce in LOOM_DIR so we use loom.yml with oracle configs
+        cp $E2E_CONFIG_DIR/loom.yml $LOOM_DIR/loom.yml
 
         # Override the loom.yaml used by the TG Oracle/tests to connect to the first node.
         NODE_RPC_ADDR=`cat cluster/0/node_rpc_addr`
@@ -283,8 +308,9 @@ function download_dappchain {
     fi
     
     rm -f ./loom; true
-    wget https://private.delegatecall.com/loom/${BUILD_PLATFORM}/${BUILD_NUMBER}/loom
-    chmod +x loom
+    wget https://private.delegatecall.com/loom/${BUILD_PLATFORM}/${BUILD_NUMBER}/loom-gateway
+    chmod +x loom-gateway
+    mv loom-gateway loom
     export LOOM_BIN=`pwd`/loom
     
     if (( DAPPCHAIN_NODE_COUNT > 1 )); then
@@ -354,6 +380,19 @@ function deploy_test_contracts {
                                 --dappchain-contracts "$DAPPCHAIN_CONTRACTS" \
                                 --deployment-file "$E2E_CONFIG_DIR/contracts.yml"
         fi
+    elif [[ "$GATEWAY_TYPE" == "binance-gateway" ]]; then
+        if [[ "$DEPLOY_TO_DAPPCHAIN" == true ]]; then
+            DAPPCHAIN_CONTRACTS="BNBToken,SampleBEP2Token"
+
+            cd $LOOM_DIR
+            GATEWAY_TYPE=$GATEWAY_TYPE \
+            BINANCE_NETWORK=$BINANCE_NETWORK \
+            DAPPCHAIN_NETWORK=$DAPPCHAIN_NETWORK \
+            $REPO_ROOT/deployer deploy-binance --loom-dir "$LOOM_DIR" \
+                                --contract-dir "$CONTRACT_DIR" \
+                                --dappchain-contracts "$DAPPCHAIN_CONTRACTS" \
+                                --deployment-file "$E2E_CONFIG_DIR/contracts.yml"
+        fi
     fi
 }
 
@@ -377,6 +416,35 @@ function map_test_contracts {
                             --loom-dir "$LOOM_DIR" \
                             --dappchain-contracts "$DAPPCHAIN_CONTRACTS" \
                             --deployment-file "$E2E_CONFIG_DIR/contracts.yml"
+    elif [[ "$GATEWAY_TYPE" == "binance-gateway" ]]; then
+        # For debugging
+        $LOOM_BIN chain-cfg list-features
+
+        DAPPCHAIN_CONTRACTS="BNBToken,SampleBEP2Token"
+        DAPPCHAIN_NETWORK=$DAPPCHAIN_NETWORK \
+        GATEWAY_TYPE=$GATEWAY_TYPE \
+        BINANCE_NETWORK=$BINANCE_NETWORK \
+        $REPO_ROOT/deployer map-binance-contracts --timeout "$ORACLE_WAIT_TIME" \
+                            --loom-dir "$LOOM_DIR" \
+                            --contract-dir "$CONTRACT_DIR" \
+                            --dappchain-contracts "$DAPPCHAIN_CONTRACTS" \
+                            --deployment-file "$E2E_CONFIG_DIR/contracts.yml"
+    fi
+}
+
+function reset_latest_block_num {
+    if [[ "$GATEWAY_TYPE" == "binance-gateway" && "$BINANCE_NETWORK" == "bnbtestnet" ]]; then
+        LATEST_BLOCK=$(curl "https://testnet-dex.binance.org/api/v1/node-info" | jq ".sync_info.latest_block_height")
+        cd $LOOM_DIR
+        $LOOM_BIN unsafe unsafe-reset-last-eth-block $LATEST_BLOCK binance-gateway -k oracle_priv.key
+    fi
+}
+
+function set_transfer_fee {
+    if [[ "$GATEWAY_TYPE" == "binance-gateway" && "$BINANCE_NETWORK" == "bnbtestnet" ]]; then
+        cd $LOOM_DIR
+        # Fixed to 37500 for now
+        $LOOM_BIN gateway set-withdraw-fee 37500 binance-gateway -k "$E2E_CONFIG_DIR/gateway_owner_priv.key"
     fi
 }
 
@@ -396,6 +464,8 @@ if [[ "$GATEWAY_TYPE" == "gateway" ]]; then
     E2E_CONFIG_DIR=$REPO_ROOT/e2e_config/${DAPPCHAIN_NETWORK}_${ETHEREUM_NETWORK}
 elif [[ "$GATEWAY_TYPE" == "tron-gateway" ]]; then
     E2E_CONFIG_DIR=$REPO_ROOT/e2e_config/${DAPPCHAIN_NETWORK}_${TRON_NETWORK}
+elif [[ "$GATEWAY_TYPE" == "binance-gateway" ]]; then
+    E2E_CONFIG_DIR=$REPO_ROOT/e2e_config/${DAPPCHAIN_NETWORK}_${BINANCE_NETWORK}
 fi
 
 if [[ "$INIT_DAPPCHAIN" == true ]]; then
@@ -459,7 +529,7 @@ if [[ "$SKIP_TESTS" == false ]]; then
                 DAPPCHAIN_NETWORK=$DAPPCHAIN_NETWORK \
                 ETHEREUM_NETWORK=$ETHEREUM_NETWORK \
                 ORACLE_WAIT_TIME=$ORACLE_WAIT_TIME \
-                go test gateway -tags "evm" -run TestTransferGatewayTestSuite -testify.m ^TestERC20DepositAndWithdraw$
+                go test gateway -v -tags "evm" -run TestTransferGatewayTestSuite -testify.m ^TestERC20DepositAndWithdraw$
             fi
             if [[ "$TEST_TO_RUN" == "ALL" ]] || [[ "$TEST_TO_RUN" == "ETHDepositAndWithdraw" ]]; then
                 LOOM_DIR=$LOOM_DIR \
@@ -488,6 +558,17 @@ if [[ "$SKIP_TESTS" == false ]]; then
         cd $REPO_ROOT/tron
         if [[ "$TEST_TO_RUN" == "ALL" ]]; then
             yarn && yarn run test tron-test.js
+        fi
+    elif [[ "$GATEWAY_TYPE" == "binance-gateway" ]]; then
+        export GOPATH=$GOPATH:$REPO_ROOT
+        cd $REPO_ROOT/src/gateway
+        if [[ "$TEST_TO_RUN" == "ALL" ]]; then
+            LOOM_DIR=$LOOM_DIR \
+            GATEWAY_TYPE=$GATEWAY_TYPE \
+            DAPPCHAIN_NETWORK=$DAPPCHAIN_NETWORK \
+            BINANCE_NETWORK=$BINANCE_NETWORK \
+            ORACLE_WAIT_TIME=$ORACLE_WAIT_TIME \
+            go test -timeout 20m -v gateway -tags "evm" -run TestBinanceTransferGatewayTestSuite
         fi
     fi
 fi

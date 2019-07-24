@@ -17,10 +17,12 @@ set -exo pipefail
 
 REPO_ROOT=`pwd`
 pkill -f loom || true
+pkill -f loom-gateway || true
+pkill -f binance_tgoracle || true
 
 #load specific number of LOOM_BIN
-rm -rf loom
-export BUILD_ID=build-1046
+rm -rf loom loom-gateway binance_tgoracle tgoracle loomcoin_tgoracle
+export BUILD_ID=build-1200
 
 # Check available platforms
 PLATFORM='unknown'
@@ -36,9 +38,15 @@ fi
 
 
 
-wget https://private.delegatecall.com/loom/$PLATFORM/$BUILD_ID/loom
-chmod +x loom
+wget https://private.delegatecall.com/loom/$PLATFORM/$BUILD_ID/loom-gateway
+chmod +x loom-gateway
+mv loom-gateway loom
 export LOOM_BIN=`pwd`/loom
+
+wget https://private.delegatecall.com/loom/$PLATFORM/$BUILD_ID/loomcoin_tgoracle
+chmod +x loomcoin_tgoracle
+wget https://private.delegatecall.com/loom/$PLATFORM/$BUILD_ID/tgoracle
+chmod +x tgoracle
 
 if [[ -z "$ETHEREUM_NETWORK" ]]; then
     cd $REPO_ROOT/mainnet
@@ -53,8 +61,12 @@ fi
 
 cd $REPO_ROOT
 export GOPATH=/tmp/gopath-$BUILD_TAG
+mkdir -p $GOPATH/bin
+export PATH=$PATH:$GOPATH/bin
+
 make clean
 make deps
+make vendor-deps
 make deployer
 
 if [[ -z "$ETHEREUM_NETWORK" ]]; then
@@ -65,8 +77,10 @@ if [[ -z "$ETHEREUM_NETWORK" ]]; then
     # run the tests on a single node
     REPO_ROOT=`pwd` \
     LOOM_BIN=$REPO_ROOT/loom \
+    LOOMCOIN_TGORACLE=$REPO_ROOT/loomcoin_tgoracle \
+    LOOM_ORACLE=$REPO_ROOT/tgoracle \
     bash loom_e2e_tests.sh --init \
-                           --launch-dappchain --launch-ganache \
+                           --launch-dappchain --launch-ganache  --launch-oracle \
                            --deploy-dappchain-contracts --deploy-ethereum-contracts \
                            --map-contracts
 
@@ -81,18 +95,18 @@ if [[ -z "$ETHEREUM_NETWORK" ]]; then
     #                       --run-test ERC721DepositAndWithdraw \
     #                       --enable-hsm --hsmkey-address 0x2669Ff29f3D3e78DAFd2dB842Cb9d0dDb96D90f2
     
-    # run the tests again on a 4-node cluster...
-    pkill -f ganache || true
-    REPO_ROOT=`pwd` \
-    LOOM_BIN=$REPO_ROOT/loom \
-    LOOMCOIN_TGORACLE=$REPO_ROOT/loomcoin_tgoracle \
-    LOOM_ORACLE=$REPO_ROOT/tgoracle \
-    LOOM_VALIDATORS_TOOL=$REPO_ROOT/validators-tool \
-    bash loom_e2e_tests.sh --init \
-                           --launch-dappchain --launch-ganache --launch-oracle \
-                           --deploy-dappchain-contracts --deploy-ethereum-contracts \
-                           --map-contracts \
-                           --nodes 4
+    # # run the tests again on a 4-node cluster...
+    # pkill -f ganache || true
+    # REPO_ROOT=`pwd` \
+    # LOOM_BIN=$REPO_ROOT/loom \
+    # LOOMCOIN_TGORACLE=$REPO_ROOT/loomcoin_tgoracle \
+    # LOOM_ORACLE=$REPO_ROOT/tgoracle \
+    # LOOM_VALIDATORS_TOOL=$REPO_ROOT/validators-tool \
+    # bash loom_e2e_tests.sh --init \
+    #                        --launch-dappchain --launch-ganache --launch-oracle \
+    #                        --deploy-dappchain-contracts --deploy-ethereum-contracts \
+    #                        --map-contracts \
+    #                        --nodes 4
 
     # run the tests again on a 4-node cluster with yubihsm
     #pkill -f ganache || true
@@ -121,17 +135,37 @@ else
     #                       --enable-hsm --hsmkey-address 0x2669Ff29f3D3e78DAFd2dB842Cb9d0dDb96D90f2
 fi
 
-cd tron
+# cd tron
 
-make deps
+# make deps
 
-cd ../
+# cd ../
 
-## Run Tron test on Shasta
+## Tron gateway get wiped, and for some reasons we can't deploy a new gateway at the moment. So, we disable the end to end test script
+# ## Run Tron test on Shasta
+# REPO_ROOT=`pwd` \
+# bash loom_e2e_tests.sh --init \
+#     --gateway-type tron-gateway \
+#     --tron-network shasta \
+#     --launch-dappchain \
+#     --deploy-dappchain-contracts \
+#     --map-contracts
+
+# Run Binance Gateway e2e test
+cd $REPO_ROOT
+export ORACLE_BUILD_NUMBER=build-26
+wget https://private.delegatecall.com/binance_tgoracle/linux/$ORACLE_BUILD_NUMBER/binance_tgoracle
+chmod +x binance_tgoracle
+
+LOOM_ORACLE=$REPO_ROOT/binance_tgoracle \
 REPO_ROOT=`pwd` \
 bash loom_e2e_tests.sh --init \
-    --gateway-type tron-gateway \
-    --tron-network shasta \
+    --gateway-type binance-gateway \
+    --binance-network bnbtestnet \
     --launch-dappchain \
+    --launch-oracle \
+    --map-contracts \
     --deploy-dappchain-contracts \
-    --map-contracts
+    --run-test ALL \
+    --reset-latest-block-num \
+    --set-transfer-fee

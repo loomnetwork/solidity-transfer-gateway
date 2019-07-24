@@ -1,3 +1,5 @@
+// +build evm
+
 package gateway
 
 import (
@@ -10,6 +12,10 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/loomnetwork/go-loom"
+	"github.com/loomnetwork/go-loom/auth"
+	loomclient "github.com/loomnetwork/go-loom/client"
+	"github.com/loomnetwork/go-loom/client/erc20"
 	"github.com/spf13/viper"
 )
 
@@ -20,15 +26,21 @@ func GetConfigDir() string {
 	}
 
 	var mainNet string
-	if gwType == "eth" {
+	switch gwType {
+	case "eth":
 		mainNet = os.Getenv("ETHEREUM_NETWORK")
 		if mainNet == "" {
 			mainNet = "ganache"
 		}
-	} else {
+	case "tron-gateway":
 		mainNet = os.Getenv("TRON_NETWORK")
 		if mainNet == "" {
 			mainNet = "shasta"
+		}
+	case "binance-gateway":
+		mainNet = os.Getenv("BINANCE_NETWORK")
+		if mainNet == "" {
+			mainNet = "bnbtestnet"
 		}
 	}
 
@@ -101,4 +113,80 @@ func GetTronKeys(name string) (string, string) {
 	tronKey := GetTestAccountKey(name + "_tron")
 	dappchainKey := GetTestAccountKey(name + "_dapp")
 	return tronKey, dappchainKey
+}
+
+func GetBnbKeys(name string) (string, string) {
+	bnbKey := GetTestAccountKey(name + "_bnb")
+	dappchainKey := GetTestAccountKey(name + "_dapp")
+	return bnbKey, dappchainKey
+}
+
+func ConnectToTokenContract(
+	loomClient *loomclient.DAppChainRPCClient, contractABIPath string, contractName string,
+) (*loomclient.MirroredTokenContract, error) {
+	abiBytes, err := ioutil.ReadFile(contractABIPath)
+	if err != nil {
+		return nil, err
+	}
+	contractABI, err := abi.JSON(strings.NewReader(string(abiBytes)))
+	if err != nil {
+		return nil, err
+	}
+
+	contractAddr, err := loomClient.Resolve(contractName)
+	if err != nil {
+		return nil, err
+	}
+
+	return &loomclient.MirroredTokenContract{
+		Contract:    loomclient.NewEvmContract(loomClient, contractAddr.Local),
+		ContractABI: &contractABI,
+		ChainID:     loomClient.GetChainID(),
+		Address:     contractAddr,
+	}, nil
+}
+
+func DeployTokenToDAppChain(loomClient *loomclient.DAppChainRPCClient, contractABIPath string,
+	contractBinPath string, contractName string, gatewayAddr loom.Address, creator auth.Signer,
+) (*loomclient.MirroredTokenContract, error) {
+	abiBytes, err := ioutil.ReadFile(contractABIPath)
+	if err != nil {
+		return nil, err
+	}
+	contractABI, err := abi.JSON(strings.NewReader(string(abiBytes)))
+	if err != nil {
+		return nil, err
+	}
+
+	hexByteCode, err := ioutil.ReadFile(contractBinPath)
+	if err != nil {
+		return nil, err
+	}
+	byteCode := common.FromHex(string(hexByteCode))
+	// append constructor args to bytecode
+	input, err := contractABI.Pack("", common.BytesToAddress(gatewayAddr.Local))
+	if err != nil {
+		return nil, err
+	}
+	byteCode = append(byteCode, input...)
+	contract, _, err := loomclient.DeployContract(loomClient, byteCode, creator, contractName)
+	if err != nil {
+		return nil, err
+	}
+	return &loomclient.MirroredTokenContract{
+		Contract:    contract,
+		ContractABI: &contractABI,
+		ChainID:     loomClient.GetChainID(),
+		Address:     contract.Address,
+	}, nil
+}
+
+func NewERC20TokenContract(
+	loomClient *loomclient.DAppChainRPCClient, contractABIPath string, contractName string,
+) (*erc20.DAppChainERC20Contract, error) {
+	mirroredTokenContract, err := ConnectToTokenContract(loomClient, contractABIPath, contractName)
+	if err != nil {
+		return nil, err
+	}
+	return &erc20.DAppChainERC20Contract{MirroredTokenContract: mirroredTokenContract}, nil
 }

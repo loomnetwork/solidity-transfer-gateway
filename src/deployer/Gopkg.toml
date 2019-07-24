@@ -1,0 +1,142 @@
+# Gopkg.toml example
+#
+# Refer to https://github.com/golang/dep/blob/master/docs/Gopkg.toml.md
+# for detailed Gopkg.toml documentation.
+#
+# required = ["github.com/user/thing/cmd/thing"]
+# ignored = ["github.com/user/project/pkgX", "bitbucket.org/user/project/pkgA/pkgY"]
+#
+# [[constraint]]
+#   name = "github.com/user/project"
+#   version = "1.0.0"
+#
+# [[constraint]]
+#   name = "github.com/user/project2"
+#   branch = "dev"
+#   source = "github.com/myfork/project2"
+#
+# [[override]]
+#   name = "github.com/x/y"
+#   version = "2.4.0"
+#
+# [prune]
+#   non-go = false
+#   go-tests = true
+#   unused-packages = true
+
+ignored = [
+  "github.com/loomnetwork/go-loom*",
+  "github.com/loomnetwork/loomchain*",
+  "github.com/loomnetwork/transfer-gateway*",
+  "github.com/miguelmota/go-solidity-sha3*",
+  "golang.org/x/net*",
+  "github.com/spf13/cobra*",
+  "github.com/spf13/pflag*",
+  "github.com/ethereum/go-ethereum*",
+  "github.com/loomnetwork/yubihsm-go*",
+  "github.com/certusone/yubihsm-go*",
+  "github.com/jmhodges/levigo*", # can only build it with the right c packages
+  "github.com/zondax/hid*"
+]
+
+[[constraint]]
+  name = "github.com/spf13/viper"
+  version = "~1.0.0"
+
+[[override]]
+  name = "github.com/binance-chain/go-sdk"
+  version = "=1.0.4"
+
+# binance-chain/go-sdk deps locked in below...
+
+[[override]]
+  name = "github.com/binance-chain/ledger-cosmos-go"
+  version = "=v0.9.9-binance.1"
+
+[[override]]
+  name = "github.com/btcsuite/btcd"
+  revision = "67e573d211ac"
+
+[[override]]
+  name = "github.com/btcsuite/btcutil"
+  revision = "ab6388e0c60a"
+
+[[override]]
+  name = "github.com/cosmos/go-bip39"
+  revision = "555e2067c45d"
+
+[[override]]
+  name = "github.com/davecgh/go-spew"
+  version = "=1.1.1"
+
+[[override]]
+  name = "github.com/go-kit/kit"
+  version = "=0.8.0"
+
+[[override]]
+  name = "github.com/go-logfmt/logfmt"
+  version = "=0.3.0"
+
+[[override]]
+  name = "github.com/gogo/protobuf"
+  version = "=1.1.1"
+
+[[override]]
+  name = "github.com/gorilla/websocket"
+  version = "=1.4.0"
+
+[[override]]
+  name = "github.com/pkg/errors"
+  version = "=0.8.0"
+
+[[override]]
+  name = "github.com/pmezard/go-difflib"
+  version = "=1.0.0"
+
+[[override]]
+  name = "github.com/prometheus/client_golang"
+  version = "=0.9.2"
+
+[[override]]
+  name = "github.com/syndtr/goleveldb"
+  version = "=1.0.0"
+
+[[override]]
+  name = "github.com/tendermint/btcd"
+  revision = "e5840949ff4f"
+
+[[override]]
+  name = "github.com/tendermint/go-amino"
+  version = "=0.14.1-binance.1"
+  source = "https://github.com/binance-chain/bnc-go-amino.git"
+
+[[override]]
+  name = "github.com/tendermint/tendermint"
+  version = "=0.31.2-rc0"
+
+# Vendoring this one doesn't seem to work, end up with this error:
+# vendor/github.com/zondax/hid/hid_enabled.go:23:31: fatal error: os/threads_posix.c: No such file or directory
+#[[override]]
+#  name = "github.com/zondax/hid"
+#  version = "=0.9.0"
+
+[[override]]
+  name = "github.com/zondax/ledger-go"
+  version = "=0.9.1"
+  source = "https://github.com/binance-chain/ledger-go.git"
+
+[[override]]
+  name = "golang.org/x/crypto"
+  revision = "3d3f9f413869"
+
+[[override]]
+  name = "golang.org/x/sys"
+  revision = "93218def8b18"
+
+[[override]]
+  name = "google.golang.org/grpc"
+  version = "=1.19.1"
+
+[prune]
+  go-tests = true
+  unused-packages = true
