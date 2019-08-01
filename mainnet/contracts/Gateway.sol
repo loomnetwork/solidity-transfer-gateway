@@ -7,7 +7,9 @@ import "erc721x/contracts/Interfaces/ERC721X.sol";
 import "erc721x/contracts/Interfaces/ERC721XReceiver.sol";
 
 import "./ERC20Gateway.sol";
+
 import "./ValidatorManagerContract.sol";
+import "./IERC721GatewayMintable.sol";
 
 contract Gateway is ERC20Gateway, IERC721Receiver, ERC721XReceiver {
 
@@ -58,7 +60,7 @@ contract Gateway is ERC20Gateway, IERC721Receiver, ERC721XReceiver {
   /// @param  _r Array of `r` values from the validator signatures
   /// @param  _s Array of `s` values from the validator signatures
   function withdrawERC721X(
-      uint256 tokenId, 
+      uint256 tokenId,
       uint256 amount,
       address contractAddress,
       uint256[] calldata _signersIndexes,
@@ -94,7 +96,7 @@ contract Gateway is ERC20Gateway, IERC721Receiver, ERC721XReceiver {
   /// @param  _r Array of `r` values from the validator signatures
   /// @param  _s Array of `s` values from the validator signatures
   function withdrawERC721(
-      uint256 uid, 
+      uint256 uid,
       address contractAddress,
       uint256[] calldata _signersIndexes,
       uint8[] calldata _v,
@@ -114,7 +116,7 @@ contract Gateway is ERC20Gateway, IERC721Receiver, ERC721XReceiver {
     // Replay protection
     nonces[msg.sender]++;
 
-    IERC721(contractAddress).safeTransferFrom(address(this),  msg.sender, uid);
+    IERC721(contractAddress).safeTransferFrom(address(this),  msg.sender, uid);    
     emit TokenWithdrawn(msg.sender, TokenKind.ERC721, contractAddress, uid);
 
   }
@@ -127,7 +129,7 @@ contract Gateway is ERC20Gateway, IERC721Receiver, ERC721XReceiver {
   /// @param  _r Array of `r` values from the validator signatures
   /// @param  _s Array of `s` values from the validator signatures
   function withdrawETH(
-      uint256 amount, 
+      uint256 amount,
       uint256[] calldata _signersIndexes,
       uint8[] calldata _v,
       bytes32[] calldata _r,
@@ -191,7 +193,7 @@ contract Gateway is ERC20Gateway, IERC721Receiver, ERC721XReceiver {
           bytes memory _data
   )
     public
-    returns(bytes4) 
+    returns(bytes4)
   {
     require(vmc.isTokenAllowed(msg.sender), "Not a valid token");
     uint256 length = _types.length;
@@ -237,6 +239,41 @@ contract Gateway is ERC20Gateway, IERC721Receiver, ERC721XReceiver {
   // Returns ERC721 token by uid
   function getERC721X(uint256 tokenId, address contractAddress) external view returns (uint256) {
     return ERC721X(contractAddress).balanceOf(address(this), tokenId);
+  }
+
+  /// @notice Function to withdraw ERC721 mintable tokens from the Gateway.
+  /// @param  uid The uid of the token being withdrawn
+  /// @param  contractAddress The address of the token being withdrawn
+  /// @param  _signersIndexes Array of indexes of the validator's signatures based on
+  ///         the currently elected validators
+  /// @param  _v Array of `v` values from the validator signatures
+  /// @param  _r Array of `r` values from the validator signatures
+  /// @param  _s Array of `s` values from the validator signatures
+  function withdrawMintableERC721(
+      uint256 uid,
+      address contractAddress,
+      uint256[] calldata _signersIndexes,
+      uint8[] calldata _v,
+      bytes32[] calldata _r,
+      bytes32[] calldata _s
+  )
+    external
+  {
+    bytes32 message = createMessageWithdraw(
+            "\x11Withdraw ERC721:\n",
+            keccak256(abi.encodePacked(uid, contractAddress))
+    );
+
+    // Ensure enough power has signed the withdrawal
+    vmc.checkThreshold(message, _signersIndexes, _v, _r, _s);
+
+    // Replay protection
+    nonces[msg.sender]++;
+
+    IERC721GatewayMintable(contractAddress).mintTo(msg.sender, uid);
+
+    emit TokenWithdrawn(msg.sender, TokenKind.ERC721, contractAddress, uid);
+
   }
 
 }

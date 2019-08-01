@@ -3,6 +3,7 @@ pragma solidity ^0.5.7;
 import "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 import "openzeppelin-solidity/contracts/token/ERC20/SafeERC20.sol";
 import "./ValidatorManagerContract.sol";
+import "./IERC20GatewayMintable.sol";
 
 contract ERC20Gateway {
     using SafeERC20 for IERC20;
@@ -63,7 +64,7 @@ contract ERC20Gateway {
   /// @param  _r Array of `r` values from the validator signatures
   /// @param  _s Array of `s` values from the validator signatures
   function withdrawERC20(
-      uint256 amount, 
+      uint256 amount,
       address contractAddress,
       uint256[] calldata _signersIndexes,
       uint8[] calldata _v,
@@ -123,5 +124,40 @@ contract ERC20Gateway {
         hash
       )
     );
+  }
+
+  /// @notice Function to withdraw ERC20 tokens from the Gateway. Emits a
+  /// ERC20Withdrawn event.
+  /// @param  amount The amount being withdrawn
+  /// @param  contractAddress The address of the token being withdrawn
+  /// @param  _signersIndexes Array of indexes of the validator's signatures based on
+  ///         the currently elected validators
+  /// @param  _v Array of `v` values from the validator signatures
+  /// @param  _r Array of `r` values from the validator signatures
+  /// @param  _s Array of `s` values from the validator signatures
+  function withdrawMintableERC20(
+      uint256 amount,
+      address contractAddress,
+      uint256[] calldata _signersIndexes,
+      uint8[] calldata _v,
+      bytes32[] calldata _r,
+      bytes32[] calldata _s
+  )
+    external
+  {
+    bytes32 message = createMessageWithdraw(
+            "\x10Withdraw ERC20:\n",
+            keccak256(abi.encodePacked(amount, contractAddress))
+    );
+
+    // Ensure enough power has signed the withdrawal
+    vmc.checkThreshold(message, _signersIndexes, _v, _r, _s);
+
+    // Replay protection
+    nonces[msg.sender]++;
+
+    IERC20GatewayMintable(contractAddress).mintTo(msg.sender, amount);
+    emit TokenWithdrawn(msg.sender, TokenKind.ERC20, contractAddress, amount);
+
   }
 }
