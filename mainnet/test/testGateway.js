@@ -44,7 +44,9 @@ contract('Transfer Gateway', async (accounts) => {
     erc721 = await SampleERC721Token.new(gateway.address, "mintabletoken", "MINT721", {from: validator})
     erc721x = await ERC721XCards.new(gateway.address, "rinkeby.loom.games/", { from: validator })
     erc20 = await GameToken.new({ from: validator })
+    badToken = await BadERC20Token.new({ from: validator })
     erc20Mintable = await SampleERC20Token.new(gateway.address, "mintableToken", "MINT20", {from: validator})
+
     await vmc.toggleAllowToken(erc721x.address, true, { from: validator })
 
     // Give Alice some coins
@@ -56,6 +58,7 @@ contract('Transfer Gateway', async (accounts) => {
     await erc20.transfer(alice, ERC20_AMOUNT, { from: validator })
     await erc20.transfer(bob, ERC20_AMOUNT, { from: validator })
     await loom.transfer(alice, ERC20_AMOUNT, { from: validator })
+    await badToken.transfer(alice, ERC20_AMOUNT, { from: validator })
 
     validatorsTotalPower = await vmc.totalPower.call();
   })
@@ -165,6 +168,15 @@ contract('Transfer Gateway', async (accounts) => {
 
     let amount = ERC20_AMOUNT
 
+    it('Withdraw bad ERC20 token', async () => {
+      await depositBadERC20(alice, amount)
+      let nonce = await gateway.nonces.call(alice)
+      let hash = soliditySha3(TokenKind.ERC20, alice, nonce, gateway.address, soliditySha3(amount, badToken.address))
+      let sigs = await createSigns(validators, hash, validatorsTotalPower, threshold)
+      await gateway.withdrawERC20(amount, badToken.address, sigs.signers, sigs.v, sigs.r, sigs.s, { from: alice }) // if successful alice gets her badToken back
+      assert.equal(await badToken.balanceOf.call(alice), amount)
+    })
+
     it('Withdraw ERC20 with stake >= equal to threshold', async () => {
       await depositERC20(alice, amount)
       let nonce = await gateway.nonces.call(alice)
@@ -242,6 +254,18 @@ contract('Transfer Gateway', async (accounts) => {
       assert.equal(received.from, from);
       assert.equal(received.amount, amount);
       assert.equal(received.loomCoinAddress, loom.address);
+    }
+  
+    async function depositBadERC20(from, amount) {
+      await badToken.approve(gateway.address, amount, { 'from': from })
+      await gateway.depositERC20(amount, badToken.address, { 'from': from })
+      let received = await gateway.getPastEvents('ERC20Received', { fromBlock: 0, toBlock: "latest" });
+      received = received[0].args;
+      assert.equal(received.from, from);
+      assert.equal(received.amount, amount);
+      assert.equal(received.contractAddress, badToken.address);
+      let balance = await gateway.getERC20.call(badToken.address)
+      assert.equal(balance, amount)
     }
 
     async function depositERC20(from, amount) {

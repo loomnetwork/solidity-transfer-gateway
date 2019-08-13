@@ -22,7 +22,7 @@ pkill -f binance_tgoracle || true
 
 #load specific number of LOOM_BIN
 rm -rf loom loom-gateway binance_tgoracle tgoracle loomcoin_tgoracle
-export BUILD_ID=build-1200
+export BUILD_ID=build-1215
 
 # Check available platforms
 PLATFORM='unknown'
@@ -153,7 +153,7 @@ fi
 
 # Run Binance Gateway e2e test
 cd $REPO_ROOT
-export ORACLE_BUILD_NUMBER=build-26
+export ORACLE_BUILD_NUMBER=build-27
 wget https://private.delegatecall.com/binance_tgoracle/linux/$ORACLE_BUILD_NUMBER/binance_tgoracle
 chmod +x binance_tgoracle
 

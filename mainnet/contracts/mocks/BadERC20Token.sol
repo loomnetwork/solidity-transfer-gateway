@@ -2,8 +2,11 @@ pragma solidity <0.6.0;
 
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 
+/**
+ * Bad token implements the `transfer` function incorrectly, so it's not actually compliant with the ERC20 standard.
+ * See https://medium.com/coinmonks/missing-return-value-bug-at-least-130-tokens-affected-d67bf08521ca for further info.
+ */
 contract BadERC20Token {
-  
   event Approval(address indexed owner, address indexed spender, uint256 value);
   event Transfer(address indexed from, address indexed to, uint256 value);
   string public name = "BadToken";
