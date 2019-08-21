@@ -26,28 +26,49 @@ abigen:
 	# Need to run npm compile in the ./mainnet directory for build/contracts to be created.
 	cat ./mainnet/build/contracts/ValidatorManagerContract.json | jq '.abi' > ./mainnet/build/ValidatorManagerContract.abi
 	./abigen --abi ./mainnet/build/ValidatorManagerContract.abi --pkg ethcontract --type ValidatorManagerContract --out src/ethcontract/mainnet_validator_manager_contract.go 
+
 	cat ./mainnet/build/contracts/ERC20Gateway.json | jq '.abi' > ./mainnet/build/ERC20Gateway.abi
 	./abigen --abi ./mainnet/build/ERC20Gateway.abi --pkg ethcontract --type ERC20Gateway --out src/ethcontract/mainnet_erc20_gateway.go 
+
 	cat ./mainnet/build/contracts/Gateway.json | jq '.abi' > ./mainnet/build/MainnetGatewayContract.abi
 	./abigen --abi ./mainnet/build/MainnetGatewayContract.abi --pkg ethcontract --type MainnetGatewayContract --out src/ethcontract/mainnet_gateway.go 
+
 	cat ./mainnet/build/contracts/CryptoCards.json | jq '.abi' > ./mainnet/build/MainnetCryptoCardsContract.abi
 	cat ./mainnet/build/contracts/CryptoCards.json | jq '.bytecode' -j > ./mainnet/build/MainnetCryptoCardsContract.bin
 	./abigen --abi ./mainnet/build/MainnetCryptoCardsContract.abi \
 		--bin ./mainnet/build/MainnetCryptoCardsContract.bin \
 		--pkg ethcontract --type MainnetCryptoCardsContract \
 		--out src/ethcontract/mainnet_crypto_cards.go
+
 	cat ./mainnet/build/contracts/GameToken.json | jq '.abi' > ./mainnet/build/MainnetGameTokenContract.abi
 	cat ./mainnet/build/contracts/GameToken.json | jq '.bytecode' -j > ./mainnet/build/MainnetGameTokenContract.bin
 	./abigen --abi ./mainnet/build/MainnetGameTokenContract.abi \
 		--bin ./mainnet/build/MainnetGameTokenContract.bin \
 		--pkg ethcontract --type MainnetGameTokenContract \
 		--out src/ethcontract/mainnet_game_token.go
+		
 	cat ./mainnet/build/contracts/ERC721XCards.json | jq '.abi' > ./mainnet/build/MainnetERC721XCardsContract.abi
 	cat ./mainnet/build/contracts/ERC721XCards.json | jq '.bytecode' -j > ./mainnet/build/MainnetERC721XCardsContract.bin
 	./abigen --abi ./mainnet/build/MainnetERC721XCardsContract.abi \
 		--bin ./mainnet/build/MainnetERC721XCardsContract.bin \
 		--pkg ethcontract --type MainnetERC721XCardsContract \
 		--out src/ethcontract/mainnet_erc721x_cards.go
+
+	cat ./mainnet/build/contracts/SampleERC20MintableToken.json | jq '.abi' > ./mainnet/build/SampleERC20MintableToken.abi
+	cat ./mainnet/build/contracts/SampleERC20MintableToken.json | jq '.bytecode' -j > ./mainnet/build/SampleERC20MintableToken.bin
+	./abigen --abi ./mainnet/build/SampleERC20MintableToken.abi \
+		--bin ./mainnet/build/SampleERC20MintableToken.bin \
+		--pkg ethcontract \
+		--type SampleERC20MintableToken \
+		--out src/ethcontract/SampleERC20MintableToken.go 
+
+	cat ./mainnet/build/contracts/SampleERC721MintableToken.json | jq '.abi' > ./mainnet/build/SampleERC721MintableToken.abi
+	cat ./mainnet/build/contracts/SampleERC721MintableToken.json | jq '.bytecode' -j > ./mainnet/build/SampleERC721MintableToken.bin
+	./abigen --abi ./mainnet/build/SampleERC721MintableToken.abi \
+		--bin ./mainnet/build/SampleERC721MintableToken.bin \
+		--pkg ethcontract \
+		--type SampleERC721MintableToken \
+		--out src/ethcontract/SampleERC721MintableToken.go 
 	# Need to run yarn compile in the ./dappchain directory for build/contracts to be created.
 	cat ./dappchain/build/contracts/ERC721DAppToken.json | jq '.abi' > ./src/ethcontract/ERC721DAppToken.abi
 	cat ./dappchain/build/contracts/ERC721XDAppToken.json | jq '.abi' > ./src/ethcontract/ERC721XDAppToken.abi
@@ -64,6 +85,8 @@ abigen:
 	cat ./dappchain/build/contracts/TRXToken.json | jq '.bytecode' -j > ./src/ethcontract/TRXToken.bin
 	cat ./dappchain/build/contracts/SampleBEP2Token.json | jq '.abi' > ./src/ethcontract/SampleBEP2Token.abi
 	cat ./dappchain/build/contracts/SampleBEP2Token.json | jq '.bytecode' -j > ./src/ethcontract/SampleBEP2Token.bin
+	cat ./dappchain/build/contracts/BNBToken.json | jq '.abi' > ./src/ethcontract/BNBToken.abi
+	cat ./dappchain/build/contracts/BNBToken.json | jq '.bytecode' -j > ./src/ethcontract/BNBToken.bin
 
 $(GO_ETHEREUM_DIR):
 	git clone -q https://github.com/loomnetwork/go-ethereum.git $@

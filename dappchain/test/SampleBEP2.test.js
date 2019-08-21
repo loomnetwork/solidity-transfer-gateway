@@ -9,7 +9,7 @@ const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 const TOKEN_NAME = "SampleBEP2Token"
 const SYMBOL = "BEP2"
 
-contract.only('SampleBEP2Token', accounts => {
+contract('SampleBEP2Token', accounts => {
     const [
         creator,
         validator1,

@@ -79,6 +79,7 @@ func DeployMainnetERC721XContract(
 		client.DefaultTransactOptsForIdentity(creator),
 		ethClient,
 		gatewayAddr,
+		"baseTokenURI",
 	)
 	if err != nil {
 		return nil, err

@@ -22,11 +22,17 @@
 #
 # ./loom_e2e_tests.sh
 
+SED='sed'
+unamestr=`uname`
+if [[ "$unamestr" == 'Darwin' ]]; then
+  SED='gsed'
+  which $SED || echo 'please run "brew install gnu-sed" to install gsed'
+fi
 
 set -exo pipefail
 
 # Loom build to use for tests when running on Jenkins, this build will be automatically downloaded.
-BUILD_NUMBER=build-1215
+BUILD_NUMBER=build-1225
 
 # These can be toggled via the options below, only useful when running the script locally.
 DOWNLOAD_LOOM=false
@@ -250,7 +256,7 @@ function init_dappchain {
         -g $GENESIS_JSON \
         -c loom.cluster.yml \
         --base-dir `pwd` \
-        --contract-dir "" \
+        --contract-dir '' \
         --name cluster \
         --loom-path $LOOM_BIN \
         --log-app-db \
@@ -261,7 +267,7 @@ function init_dappchain {
 
         # Override the loom.yaml used by the TG Oracle/tests to connect to the first node.
         NODE_RPC_ADDR=`cat cluster/0/node_rpc_addr`
-        sed -i "s/DAppChainReadURI\s*:.*$/DAppChainReadURI: http:\/\/${NODE_RPC_ADDR}\/query/m;\
+        $SED -i "s/DAppChainReadURI\s*:.*$/DAppChainReadURI: http:\/\/${NODE_RPC_ADDR}\/query/m;\
         s/DAppChainWriteURI\s*:.*$/DAppChainWriteURI: http:\/\/${NODE_RPC_ADDR}\/rpc/m;\
         s/DAppChainEventsURI\s*:.*$/DAppChainEventsURI: ws:\/\/${NODE_RPC_ADDR}\/queryws/m" $LOOM_DIR/loom.yml
 
@@ -286,10 +292,10 @@ function init_dappchain {
         EXTRACTION_PATTERN="{value}"
         cat $LOOM_DIR/validatorkey | jq -r '.[] | .value' > $LOOM_DIR/validatorkey2
         Validator_Key=`cat $LOOM_DIR/validatorkey2`
-        sed -i "s@pubKey.*@pubKey\": \"${Validator_Key}\",@m" $LOOM_DIR/genesis.json
+        $SED -i "s@pubKey.*@pubKey\": \"${Validator_Key}\",@m" $LOOM_DIR/genesis.json
 
         # Disable the Fn (hack with 4 spaces and backslashes)
-        sed -i "/BatchSignFnConfig/!b;n;c \ \ \ \ Enabled: False" $LOOM_DIR/loom.yml
+        $SED -i "/BatchSignFnConfig/!b;n;c \ \ \ \ Enabled: False" $LOOM_DIR/loom.yml
 
     fi
     echo 'Loom DAppChain initialized in ' $LOOM_DIR
@@ -337,11 +343,11 @@ function deploy_test_contracts {
     DAPPCHAIN_CONTRACTS=""
 
     if [[ "$DEPLOY_TO_ETHEREUM" == true ]]; then
-        ETHEREUM_CONTRACTS="CryptoCards,GameToken,ERC721XCards"
+        ETHEREUM_CONTRACTS="CryptoCards,GameToken,ERC721XCards,SampleERC20MintableToken,SampleERC721MintableToken"
     fi
 
     if [[ "$DEPLOY_TO_DAPPCHAIN" == true ]]; then
-        DAPPCHAIN_CONTRACTS="SampleERC721Token,SampleERC20Token,SampleERC721XToken,TRXToken"
+        DAPPCHAIN_CONTRACTS="SampleERC721Token,SampleERC20Token,SampleERC721XToken,TRXToken,SampleERC20Token2,SampleERC721Token2"
     fi
 
     if [[ "$DEPLOY_TO_TRON" == true ]]; then
@@ -353,8 +359,8 @@ function deploy_test_contracts {
             cp $REPO_ROOT/e2e_config/shasta/* $E2E_CONFIG_DIR
 
             # Set gateway address
-            MainnetGatewayAddress=`cat $E2E_CONFIG_DIR/contracts.yml | grep mainnet_gateway_addr  | awk '{print $2}' |sed  's/"41/"0x/g'`
-            sed -i "s@MainnetContractHexAddress.*@MainnetContractHexAddress: ${MainnetGatewayAddress}@m" $E2E_CONFIG_DIR/loom.yml
+            MainnetGatewayAddress=`cat $E2E_CONFIG_DIR/contracts.yml | grep mainnet_gateway_addr  | awk '{print $2}' |$SED  's/"41/"0x/g'`
+            $SED -i "s@MainnetContractHexAddress.*@MainnetContractHexAddress: ${MainnetGatewayAddress}@m" $E2E_CONFIG_DIR/loom.yml
         fi
     fi
 
@@ -366,7 +372,8 @@ function deploy_test_contracts {
             $REPO_ROOT/deployer deploy --loom-dir "$LOOM_DIR" \
                                 --ethereum-contracts "$ETHEREUM_CONTRACTS" \
                                 --dappchain-contracts "$DAPPCHAIN_CONTRACTS" \
-                                --deployment-file "$E2E_CONFIG_DIR/contracts.yml"
+                                --deployment-file "$E2E_CONFIG_DIR/contracts.yml" \
+                                --contract-dir "$CONTRACT_DIR"
         fi
     elif [[ "$GATEWAY_TYPE" == "tron-gateway" ]]; then
         if [[ "$DEPLOY_TO_DAPPCHAIN" == true ]]; then
@@ -397,7 +404,7 @@ function deploy_test_contracts {
 }
 
 function map_test_contracts {
-    DAPPCHAIN_CONTRACTS="SampleERC721Token,SampleERC20Token,SampleERC721XToken,TRXToken"
+    DAPPCHAIN_CONTRACTS="SampleERC721Token,SampleERC20Token,SampleERC721XToken,TRXToken,SampleERC20Token2,SampleERC721Token2"
     
     if [[ "$GATEWAY_TYPE" == "gateway" ]]; then
         DAPPCHAIN_NETWORK=$DAPPCHAIN_NETWORK \
@@ -499,7 +506,7 @@ if [[ "$SKIP_TESTS" == false ]]; then
             DAPPCHAIN_NETWORK=$DAPPCHAIN_NETWORK \
             ETHEREUM_NETWORK=$ETHEREUM_NETWORK \
             ORACLE_WAIT_TIME=$ORACLE_WAIT_TIME \
-            go test -v gateway -tags "evm" -run TestTransferGatewayTestSuite
+            go test -v gateway -tags "evm" -timeout 15m -run TestTransferGatewayTestSuite
         else
             # each test takes about 6 mins to complete on Rinkeby, so run them individually to get
             # quicker feedback when something fails

@@ -6,8 +6,6 @@ const MINT_BALANCE = 10000000
 
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-const TOKEN_NAME = "SampleERC20MintableToken"
-const SYMBOL = "SMPL"
 
 contract('SampleERC20MintableToken', accounts => {
     const [
@@ -26,7 +24,7 @@ contract('SampleERC20MintableToken', accounts => {
     let sampleERC20MintableToken
     
     beforeEach(async () => {
-        sampleERC20MintableToken = await SampleERC20MintableToken.new(withdrawer1, TOKEN_NAME, SYMBOL)
+        sampleERC20MintableToken = await SampleERC20MintableToken.new(withdrawer1)
         await sampleERC20MintableToken.addValidator(validator1, {from: creator})  
         await sampleERC20MintableToken.addGateway(gateway1, {from: validator1})    
     })
@@ -45,7 +43,15 @@ contract('SampleERC20MintableToken', accounts => {
         await expectThrow(sampleERC20MintableToken.removeGateway(gateway3, {from:notValidator}))
     })
 
-    
+    it(`is validator`, async () => {
+        assert.equal(await sampleERC20MintableToken.isValidator(creator), true, "creator should be one of the validator")
+        assert.equal(await sampleERC20MintableToken.isValidator(notValidator), false, "notValidator should not be one of the validator")
+    })
+
+    it(`is gateway`, async () => {
+        assert.equal(await sampleERC20MintableToken.isGateway(gateway1), true, "gateway1 should be one of the gateways")
+        assert.equal(await sampleERC20MintableToken.isGateway(notGateway), false, "notGateway should not be one of the gateways")
+    })
 
     it(`only gateway can use mintTo()`, async () => {
         let withdrawer1BalanceBefore = await sampleERC20MintableToken.balanceOf(withdrawer1)

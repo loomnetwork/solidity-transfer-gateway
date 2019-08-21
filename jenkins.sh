@@ -22,7 +22,9 @@ pkill -f binance_tgoracle || true
 
 #load specific number of LOOM_BIN
 rm -rf loom loom-gateway binance_tgoracle tgoracle loomcoin_tgoracle
-export BUILD_ID=build-1215
+export BUILD_ID=build-1225
+
+
 
 # Check available platforms
 PLATFORM='unknown'
@@ -52,6 +54,7 @@ if [[ -z "$ETHEREUM_NETWORK" ]]; then
     cd $REPO_ROOT/mainnet
     yarn install
     yarn lint
+    yarn compile
     yarn test
 
     cd $REPO_ROOT/dappchain
@@ -84,18 +87,31 @@ if [[ -z "$ETHEREUM_NETWORK" ]]; then
                            --deploy-dappchain-contracts --deploy-ethereum-contracts \
                            --map-contracts
 
-    # run the tests on a single node with yubihsm (disabled until we setup new remote signer)
-    #pkill -f ganache || true
-    #REPO_ROOT=`pwd` \
-    #LOOM_BIN=$REPO_ROOT/loom \
-    #bash loom_e2e_tests.sh --init \
+    # # run the tests on a single node with yubihsm (disabled until we setup new remote signer)
+    # pkill -f ganache || true
+    # REPO_ROOT=`pwd` \
+    # LOOM_BIN=$REPO_ROOT/loom \
+    # bash loom_e2e_tests.sh --init \
     #                       --launch-dappchain --launch-ganache \
     #                       --deploy-dappchain-contracts --deploy-ethereum-contracts \
     #                       --map-contracts \
     #                       --run-test ERC721DepositAndWithdraw \
     #                       --enable-hsm --hsmkey-address 0x2669Ff29f3D3e78DAFd2dB842Cb9d0dDb96D90f2
     
-    # # run the tests again on a 4-node cluster...
+    # run the tests again on a 4-node cluster...
+    pkill -f ganache || true
+    REPO_ROOT=`pwd` \
+    LOOM_BIN=$REPO_ROOT/loom \
+    LOOMCOIN_TGORACLE=$REPO_ROOT/loomcoin_tgoracle \
+    LOOM_ORACLE=$REPO_ROOT/tgoracle \
+    LOOM_VALIDATORS_TOOL=$REPO_ROOT/validators-tool \
+    bash loom_e2e_tests.sh --init \
+                           --launch-dappchain --launch-ganache --launch-oracle \
+                           --deploy-dappchain-contracts --deploy-ethereum-contracts \
+                           --map-contracts \
+                           --nodes 4
+
+    # # run the tests again on a 4-node cluster with yubihsm
     # pkill -f ganache || true
     # REPO_ROOT=`pwd` \
     # LOOM_BIN=$REPO_ROOT/loom \
@@ -103,19 +119,6 @@ if [[ -z "$ETHEREUM_NETWORK" ]]; then
     # LOOM_ORACLE=$REPO_ROOT/tgoracle \
     # LOOM_VALIDATORS_TOOL=$REPO_ROOT/validators-tool \
     # bash loom_e2e_tests.sh --init \
-    #                        --launch-dappchain --launch-ganache --launch-oracle \
-    #                        --deploy-dappchain-contracts --deploy-ethereum-contracts \
-    #                        --map-contracts \
-    #                        --nodes 4
-
-    # run the tests again on a 4-node cluster with yubihsm
-    #pkill -f ganache || true
-    #REPO_ROOT=`pwd` \
-    #LOOM_BIN=$REPO_ROOT/loom \
-    #LOOMCOIN_TGORACLE=$REPO_ROOT/loomcoin_tgoracle \
-    #LOOM_ORACLE=$REPO_ROOT/tgoracle \
-    #LOOM_VALIDATORS_TOOL=$REPO_ROOT/validators-tool \
-    #bash loom_e2e_tests.sh --init \
     #                       --launch-dappchain --launch-ganache --launch-oracle \
     #                       --deploy-dappchain-contracts --deploy-ethereum-contracts \
     #                       --map-contracts \
@@ -128,11 +131,11 @@ else
                            --ethereum-network "$ETHEREUM_NETWORK" \
                            --run-test "$TEST_TO_RUN"
 
-    #REPO_ROOT=`pwd` \
-    #bash loom_e2e_tests.sh --dappchain-network "$DAPPCHAIN_NETWORK" \
-    #                       --ethereum-network "$ETHEREUM_NETWORK" \
-    #                       --run-test "$TEST_TO_RUN" \
-    #                       --enable-hsm --hsmkey-address 0x2669Ff29f3D3e78DAFd2dB842Cb9d0dDb96D90f2
+    REPO_ROOT=`pwd` \
+    bash loom_e2e_tests.sh --dappchain-network "$DAPPCHAIN_NETWORK" \
+                          --ethereum-network "$ETHEREUM_NETWORK" \
+                          --run-test "$TEST_TO_RUN" \
+                          --enable-hsm --hsmkey-address 0x2669Ff29f3D3e78DAFd2dB842Cb9d0dDb96D90f2
 fi
 
 # cd tron

@@ -13,8 +13,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/loomnetwork/go-loom"
 	loom_client "github.com/loomnetwork/go-loom/client"
-
 	"github.com/stretchr/testify/suite"
 
 	// Contract bindings
@@ -43,12 +43,16 @@ type TransferGatewayTestSuite struct {
 	mainnetGateway               *gw.MainnetGatewayClient
 	mainnetLoomGateway           *gw.MainnetGatewayClient
 	mainnetCards                 *client.MainnetCryptoCardsClient
+	mainnetERC721                *client.MainnetERC721MintableContract
 	mainnetERC721X               *client.MainnetERC721XContract
 	mainnetCoin                  *client.MainnetERC20Contract
+	mainnetCoin2                 *client.MainnetERC20MintableContract
 	mainnetLoomCoin              *client.MainnetERC20Contract
 	loomERC721X                  *erc721x.DAppChainERC721XContract
 	loomERC721                   *erc721.DAppChainERC721Contract
+	loomERC721_2                 *erc721.DAppChainERC721Contract
 	loomERC20                    *erc20.DAppChainERC20Contract
+	loomERC20_2                  *erc20.DAppChainERC20Contract
 	loomCoin                     *native_coin.DAppChainNativeCoin
 	loomEth                      *native_coin.DAppChainNativeCoin
 	onGanache                    bool
@@ -123,21 +127,34 @@ func (s *TransferGatewayTestSuite) SetupSuite() {
 	s.loomERC20, err = erc20.ConnectERC20ToDAppChain(s.loomClient, "SampleERC20Token")
 	require.NoError(err)
 
+	// new mintable token
+	dapptokenaddr := GetMainnetContractCfgString("dapp_token_for_erc20_mintable_token_addr")
+	mirroredTokenContract, err := ConnectToTokenContractByAddress(s.loomClient, "../ethcontract/SampleERC20Token.abi",
+		"SampleERC20Token", loom.MustParseAddress("default:"+dapptokenaddr))
+	require.NoError(err)
+	s.loomERC20_2 = &erc20.DAppChainERC20Contract{MirroredTokenContract: mirroredTokenContract}
+	require.NoError(err)
+
 	s.loomERC721, err = erc721.ConnectERC721ToDAppChain(s.loomClient, "SampleERC721Token")
 	require.NoError(err)
 
 	s.loomERC721X, err = erc721x.ConnectERC721XToDAppChain(s.loomClient, "SampleERC721XToken")
 	require.NoError(err)
 
+	dappeErc721tokenaddr := GetMainnetContractCfgString("dapp_token_for_erc721_mintable_token_addr")
+	mirroredErc721TokenContract, err := ConnectToTokenContractByAddress(s.loomClient, "../ethcontract/SampleERC721Token.abi",
+		"SampleERC721Token", loom.MustParseAddress("default:"+dappeErc721tokenaddr))
+	require.NoError(err)
+	s.loomERC721_2 = &erc721.DAppChainERC721Contract{MirroredTokenContract: mirroredErc721TokenContract}
+	require.NoError(err)
+
 	// Connect mainnet contracts
 
 	vmcAddr := GetMainnetContractCfgString("mainnet_validatormanagercontract_addr")
-	fmt.Println(vmcAddr)
 	s.validatorsManager, err = vmc.ConnectToMainnetVMCClient(s.ethClient, vmcAddr)
 	require.NoError(err)
 
 	mainnetGatewayAddr := GetMainnetContractCfgString("mainnet_gateway_addr")
-	fmt.Println(mainnetGatewayAddr)
 	s.mainnetGateway, err = gw.ConnectToMainnetGateway(s.ethClient, mainnetGatewayAddr)
 	require.NoError(err)
 
@@ -149,6 +166,10 @@ func (s *TransferGatewayTestSuite) SetupSuite() {
 	s.mainnetCards, err = client.ConnectToMainnetCards(s.ethClient, erc721Addr)
 	require.NoError(err)
 
+	erc721Addr2 := GetMainnetContractCfgString("mainnet_erc721_mintable_token_addr")
+	s.mainnetERC721, err = client.ConnectToMainnetERC721MintableContract(s.ethClient, erc721Addr2)
+	require.NoError(err)
+
 	erc721XAddr := GetMainnetContractCfgString("mainnet_erc721x_cards_addr")
 	s.mainnetERC721X, err = client.ConnectToMainnetERC721XContract(s.ethClient, erc721XAddr)
 	require.NoError(err)
@@ -157,13 +178,21 @@ func (s *TransferGatewayTestSuite) SetupSuite() {
 	s.mainnetCoin, err = client.ConnectToMainnetERC20Contract(s.ethClient, erc20Addr)
 	require.NoError(err)
 
+	erc20Addr2 := GetMainnetContractCfgString("mainnet_erc20_mintable_token_addr")
+	s.mainnetCoin2, err = client.ConnectToMainnetERC20MintableContract(s.ethClient, erc20Addr2)
+	require.NoError(err)
+
 	loomAddr := GetMainnetContractCfgString("loomtoken_addr")
 	s.mainnetLoomCoin, err = client.ConnectToMainnetERC20Contract(s.ethClient, loomAddr)
 	require.NoError(err)
 
 	// Create identities
 
-	ethKey, dappchainKey := GetKeys("dan")
+	ethKey, dappchainKey := GetKeys("trudy")
+	s.gatewayCreator, err = loom_client.CreateIdentityStr(ethKey, dappchainKey, s.loomClient.GetChainID())
+	require.NoError(err)
+
+	ethKey, dappchainKey = GetKeys("dan")
 	s.cardsCreator, err = loom_client.CreateIdentityStr(ethKey, dappchainKey, s.loomClient.GetChainID())
 	require.NoError(err)
 
@@ -420,6 +449,92 @@ func (s *TransferGatewayTestSuite) TestERC721DepositTransferWithdraw() {
 	wr, err = s.dappchainGateway.WithdrawalReceipt(bob)
 	require.NoError(err)
 	require.Nil(wr, "DAppChain Gateway should've cleared out Bob's pending withdrawal")
+}
+
+func (s *TransferGatewayTestSuite) TestERC721MintableWithdraw() {
+	var err error
+	require := s.Require()
+	alice := s.alice
+	aliceTokenID := big.NewInt(123)
+
+	validators, err := s.validatorsManager.GetValidators()
+	require.NoError(err)
+
+	// Give Alice some ERC721 tokens on Dappchain
+	require.NoError(s.loomERC721_2.MintTo(s.cardsCreator, alice.LoomAddr, aliceTokenID))
+
+	// Alice should now have her token in the DAppChain ERC721 contract
+	ownerAddr, err := s.loomERC721_2.OwnerOf(aliceTokenID)
+	require.NoError(err)
+	require.Equal(alice.LoomAddr.Local.Hex(), ownerAddr.Hex())
+
+	// Alice must grant approval to the DAppChain Gateway to take ownership of the token when it's withdrawn
+	require.NoError(s.loomERC721_2.Approve(alice, s.dappchainGateway.Address, aliceTokenID))
+
+	// Wait until the receipt is empty
+	for {
+		wr, err := s.dappchainGateway.WithdrawalReceipt(alice)
+		require.NoError(err)
+		if wr == nil {
+			break
+		}
+		time.Sleep(5 * time.Second)
+	}
+
+	// Now Alice can requests a withdrawal from the DAppChain Gateway...
+	for i := 0; i < 5; i++ {
+		err = s.dappchainGateway.WithdrawERC721(alice, aliceTokenID, s.loomERC721_2.Address, nil)
+		if err != nil {
+			if strings.Contains(err.Error(), "TG003") {
+				time.Sleep(5 * time.Second)
+			} else {
+				require.NoError(err)
+			}
+		} else {
+			break
+		}
+	}
+	require.NoError(err)
+
+	// and receives a withdrawal receipt...
+	wr, err := s.dappchainGateway.WithdrawalReceipt(alice)
+	require.NoError(err)
+	require.NotNil(wr)
+
+	// Let the Oracle fetch pending withdrawals & sign them
+	for {
+		wr, err = s.dappchainGateway.WithdrawalReceipt(alice)
+		if wr.OracleSignature != nil {
+			break
+		}
+
+		time.Sleep(5 * time.Second)
+	}
+
+	wr, err = s.dappchainGateway.WithdrawalReceipt(alice)
+	require.NoError(err)
+	require.NotNil(wr)
+
+	// Verify Alice's withdrawal receipt has been signed by enough validators
+	require.True(len(wr.OracleSignature)/65 >= 2*len(validators)/3, "Must be signed by 2/3rds validators")
+
+	// Alice can now withdraw the token from the Mainnet Gateway by presenting the signature from
+	// the withdrawal receipt
+	require.NoError(s.mainnetGateway.WithdrawERC721(alice, aliceTokenID, s.mainnetERC721.Address, wr.OracleSignature, validators))
+
+	// Alice should now have her token back on Mainnet
+	aliceEndBalance, err := s.mainnetERC721.BalanceOf(alice)
+	require.NoError(err)
+	require.Equal(big.NewInt(1), aliceEndBalance)
+
+	// Let the Oracle notify the DAppChain Gateway that Alice has completed the withdrawal
+	s.mineBlocksTillConfirmation()
+	time.Sleep(s.oracleWaitTime)
+
+	// Check the DAppChain Gateway has been updated...
+	wr, err = s.dappchainGateway.WithdrawalReceipt(alice)
+	require.NoError(err)
+	require.Nil(wr, "DAppChain Gateway should've cleared out Alice's pending withdrawal")
 }
 
 // Alice transfers an ERC721X token from Mainnet to DAppChain, then transfers it to Bob on the
@@ -799,6 +914,96 @@ func (s *TransferGatewayTestSuite) TestERC20DepositAndWithdraw() {
 	require.Nil(wr, "DAppChain Gateway should've cleared out Alice's pending withdrawal")
 }
 
+func (s *TransferGatewayTestSuite) TestERC20MintableWithdraw() {
+	var err error
+	require := s.Require()
+
+	alice := s.alice
+
+	tokenAmount := sciNot(345)
+
+	aliceMainnetCoinStartBal, err := s.mainnetCoin2.BalanceOf(alice)
+	require.NoError(err)
+
+	// Give Alice some ERC20 tokens on Dappchain
+	aliceLoomCoinStartBal, err := s.loomERC20_2.BalanceOf(alice)
+	require.NoError(s.loomERC20_2.MintTo(s.coinCreator, alice.LoomAddr, tokenAmount))
+	require.NoError(err)
+
+	// Alice should now have her tokens in the DAppChain ERC20 contract
+	curBalance, err := s.loomERC20_2.BalanceOf(alice)
+	require.NoError(err)
+	require.Equal(
+		tokenAmount.String(),
+		new(big.Int).Sub(curBalance, aliceLoomCoinStartBal).String(),
+		"Alice's tokens should be in the DAppChain ERC20 contract")
+
+	// Alice must grant approval to the DAppChain Gateway to take ownership of the tokens when they're withdrawn
+	require.NoError(s.loomERC20_2.Approve(alice, s.dappchainGateway.Address, tokenAmount))
+
+	// Wait until the receipt is empty
+	for {
+		wr, err := s.dappchainGateway.WithdrawalReceipt(alice)
+		require.NoError(err)
+		if wr == nil {
+			break
+		}
+		time.Sleep(5 * time.Second)
+	}
+
+	// Now Alice can requests a withdrawal from the DAppChain Gateway...
+	for i := 0; i < 5; i++ {
+		err = s.dappchainGateway.WithdrawERC20(alice, tokenAmount, s.loomERC20_2.Address)
+		if err != nil {
+			if strings.Contains(err.Error(), "TG003") {
+				time.Sleep(5 * time.Second)
+			} else {
+				require.NoError(err)
+			}
+		} else {
+			break
+		}
+	}
+	require.NoError(err)
+
+	wr, err := s.dappchainGateway.WithdrawalReceipt(alice)
+	for {
+		wr, err = s.dappchainGateway.WithdrawalReceipt(alice)
+		if wr.OracleSignature != nil {
+			break
+		}
+
+		time.Sleep(5 * time.Second)
+	}
+
+	// Verify Alice's withdrawal receipt has been signed by the Oracle
+	wr, err = s.dappchainGateway.WithdrawalReceipt(alice)
+
+	// Alice can now withdraw the tokens from the Mainnet Gateway by presenting the signature from
+	// the withdrawal receipt
+	validators, err := s.validatorsManager.GetValidators()
+	require.NoError(err)
+
+	// Verify Alice's withdrawal receipt has been signed by enough validators
+	require.True(len(wr.OracleSignature)/65 >= 2*len(validators)/3, "Must be signed by 2/3rds validators")
+	require.NoError(s.mainnetGateway.WithdrawERC20(alice, tokenAmount, s.mainnetCoin2.Address, wr.OracleSignature, validators))
+
+	aliceMainnnetEndBalance, err := s.mainnetCoin2.BalanceOf(alice)
+	require.NoError(err)
+	require.Equal(
+		tokenAmount.String(), new(big.Int).Sub(aliceMainnnetEndBalance, aliceMainnetCoinStartBal).String(),
+		"Alice should have her tokens in her Mainnet account")
+
+	// Let the Oracle notify the DAppChain Gateway that Alice has completed the withdrawal
+	s.mineBlocksTillConfirmation()
+	time.Sleep(s.oracleWaitTime)
+
+	// Check the DAppChain Gateway has been updated...
+	wr, err = s.dappchainGateway.WithdrawalReceipt(alice)
+	require.NoError(err)
+	require.Nil(wr, "DAppChain Gateway should've cleared out Alice's pending withdrawal")
+}
+
 func (s *TransferGatewayTestSuite) TestETHDepositAndWithdraw() {
 	require := s.Require()
 	alice := s.alice
@@ -888,6 +1093,7 @@ func (s *TransferGatewayTestSuite) TestETHDepositAndWithdraw() {
 	require.NoError(err)
 
 	// Verify Alice's withdrawal receipt has been signed by enough validators
+	fmt.Println("Verify Alice's withdrawal receipt has been signed by enough validators")
 	require.True(len(wr.OracleSignature)/65 >= 2*len(validators)/3, "Must be signed by 2/3rds validators")
 
 	aliceMainnetEthBal, err := s.ethClient.BalanceAt(context.TODO(), alice.MainnetAddr, nil)

@@ -296,7 +296,9 @@ func (s *BinanceTransferGatewayTestSuite) TestBEP2DepositAndWithdraw() {
 	aliceAccount, err := s.aliceDexClient.GetAccount(s.aliceBnbAddress.String())
 	require.NoError(err)
 	aliceMainnetMoolCoinStartBal := getBEP2TokenBalance(aliceAccount.Balances, MoolToken)
-	fmt.Println("ALICE MAINNET BALANCE", aliceMainnetMoolCoinStartBal)
+	fmt.Println("ALICE MAINNET MOOL BALANCE", aliceMainnetMoolCoinStartBal)
+	aliceMainnetBNBCoinStartBal := getBEP2TokenBalance(aliceAccount.Balances, BNBNativeToken)
+	fmt.Println("ALICE MAINNET BNB BALANCE", aliceMainnetBNBCoinStartBal)
 	aliceDappMoolCoinStartBal, err := s.sampleBEP2Token.BalanceOf(s.alice)
 	require.NoError(err)
 	fmt.Println("ALICE DAPPCHAIN BALANCE", aliceDappMoolCoinStartBal)
@@ -308,6 +310,7 @@ func (s *BinanceTransferGatewayTestSuite) TestBEP2DepositAndWithdraw() {
 
 	var amount int64 = 10 * 1e8
 	var tokenAmount = big.NewInt(amount)
+	var justEnoughFee int64 = 37500
 
 	// Alice deposits to wallet
 	payload := []msg.Transfer{
@@ -321,11 +324,28 @@ func (s *BinanceTransferGatewayTestSuite) TestBEP2DepositAndWithdraw() {
 			},
 		},
 	}
+
+	payload2 := []msg.Transfer{
+		msg.Transfer{
+			ToAddr: s.tokenOwnerBnbAddress,
+			Coins: []bnbtypes.Coin{
+				bnbtypes.Coin{
+					Denom:  BNBNativeToken,
+					Amount: justEnoughFee,
+				},
+			},
+		},
+	}
+
 	// make sure we have put loom address in memo
 	aliceDappchainAddr := "loom" + s.alice.LoomAddr.Local.Hex()
 	result, err := s.aliceDexClient.SendToken(payload, true, transaction.WithMemo(aliceDappchainAddr))
 	require.NoError(err)
 	fmt.Println("send token tx hash on Binance Dex: ", result.Hash)
+
+	result2, err := s.aliceDexClient.SendToken(payload2, true, transaction.WithMemo(aliceDappchainAddr))
+	require.NoError(err)
+	fmt.Println("send token tx hash on Binance Dex: ", result2.Hash)
 
 	// wait for oracle process
 	time.Sleep(30 * time.Second)
@@ -337,7 +357,11 @@ func (s *BinanceTransferGatewayTestSuite) TestBEP2DepositAndWithdraw() {
 	fmt.Println("ALICE MAINNET BALANCE AFTER DEPOSIT", aliceMainnetMoolCoinStartBal)
 	aliceDappMoolCoinStartBal, err = s.sampleBEP2Token.BalanceOf(s.alice)
 	require.NoError(err)
-	fmt.Println("ALICE DAPPCHAIN BALANCE AFTER DEPOSIT", aliceDappMoolCoinStartBal)
+	fmt.Println("ALICE DAPPCHAIN MOOL BALANCE AFTER DEPOSIT", aliceDappMoolCoinStartBal)
+
+	aliceDappBNBCoinStartBal, err := s.bnbToken.BalanceOf(s.alice)
+	require.NoError(err)
+	fmt.Println("ALICE DAPPCHAIN BNB BALANCE AFTER DEPOSIT", aliceDappBNBCoinStartBal)
 
 	require.EqualValues(
 		tokenAmount.String(),
@@ -353,13 +377,10 @@ func (s *BinanceTransferGatewayTestSuite) TestBEP2DepositAndWithdraw() {
 	curDppchainBalance = aliceDappMoolCoinStartBal
 
 	fmt.Printf("Alice is withdrawing %s from DAppChain Gateway...\n", tokenAmount.String())
-	// First, Alice need BNB token in the DAppChain so she can use it as transfer fee.
-	// Since Alice has no BNB token at the begining, we just transfer some amount from transfer gateway to Alice.
+	// Alice needs BNB token in the DAppChain so she can use it as transfer fee, so we transfer BNB into the system.
 	var feeAmount = big.NewInt(37500)
-	toAddr := common.BytesToAddress(s.alice.LoomAddr.Local)
-	require.NoError(s.bnbToken.CallEVM("transfer", s.tokenOwner.LoomSigner, toAddr, feeAmount))
 
-	aliceDappBNBCoinStartBal, err := s.bnbToken.BalanceOf(s.alice)
+	aliceDappBNBCoinStartBal, err = s.bnbToken.BalanceOf(s.alice)
 	require.NoError(err)
 	fmt.Println("ALICE BNB DAPPCHAIN BALANCE BEFORE WITHDRAWAL", aliceDappBNBCoinStartBal)
 

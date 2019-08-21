@@ -146,6 +146,27 @@ func ConnectToTokenContract(
 	}, nil
 }
 
+func ConnectToTokenContractByAddress(
+	loomClient *loomclient.DAppChainRPCClient, contractABIPath string, contractName string,
+	contractAddr loom.Address,
+) (*loomclient.MirroredTokenContract, error) {
+	abiBytes, err := ioutil.ReadFile(contractABIPath)
+	if err != nil {
+		return nil, err
+	}
+	contractABI, err := abi.JSON(strings.NewReader(string(abiBytes)))
+	if err != nil {
+		return nil, err
+	}
+
+	return &loomclient.MirroredTokenContract{
+		Contract:    loomclient.NewEvmContract(loomClient, contractAddr.Local),
+		ContractABI: &contractABI,
+		ChainID:     loomClient.GetChainID(),
+		Address:     contractAddr,
+	}, nil
+}
+
 func DeployTokenToDAppChain(loomClient *loomclient.DAppChainRPCClient, contractABIPath string,
 	contractBinPath string, contractName string, gatewayAddr loom.Address, creator auth.Signer,
 ) (*loomclient.MirroredTokenContract, error) {

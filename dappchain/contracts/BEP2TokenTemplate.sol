@@ -4,19 +4,16 @@ import 'openzeppelin-solidity/contracts/token/ERC20/MintableToken.sol';
 
 contract BEP2TokenTemplate is MintableToken {
     mapping (address => bool) gateway;
-    string public name;
-    string public symbol;
+
     uint8 public constant decimals = 8; // Need to have exact 8 decimals because of BEP2 specifications
     uint256 public INITIAL_SUPPLY = 0 * (10 ** uint256(decimals));
     mapping (address => bool) validator;
 
-    constructor(address _gateway, string _name, string _symbol) public {
+    constructor(address _gateway) public {
         gateway[_gateway] = true;
         validator[msg.sender] = true;
         totalSupply_ = INITIAL_SUPPLY;
         balances[msg.sender] = INITIAL_SUPPLY;
-        name = _name;
-        symbol = _symbol;
     }
 
     function mintToGateway(uint256 _amount) onlyGateway public {

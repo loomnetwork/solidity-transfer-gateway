@@ -10,10 +10,12 @@ const BadERC20Token = artifacts.require('BadERC20Token')
 const Reentrancy = artifacts.require('ReentrancyExploit')
 const SampleERC20Token = artifacts.require('SampleERC20MintableToken')
 const SampleERC721Token = artifacts.require("SampleERC721MintableToken")
+const NormalERC721Token = artifacts.require("CryptoCards")
 
 const { soliditySha3 } = require('web3-utils')
 const { assertEventVar, Promisify, createSigns, createValidators } = require('./utils.js')
 const { shouldFail } = require('openzeppelin-test-helpers');
+
 
 contract('Transfer Gateway', async (accounts) => {
   let gateway, erc20, erc721, erc721x, loom, vmc, erc20Mintable
@@ -30,22 +32,24 @@ contract('Transfer Gateway', async (accounts) => {
   };
 
   const ERC20_AMOUNT = "10000000000000000000";
+  const ERC20_AMOUNT_2 = "10000000000000000000000";
+  const ERC20_AMOUNT_3 = "5000000000000000000";
   const ERC721_UID = "2"
   const ETHER_AMOUNT = "3000000000000000000";
   const threshold = 0.67
 
   beforeEach(async () => {
     validators = createValidators(21);
-
     loom = await Loom.new({ from: validator })
     vmc = await ValidatorManagerContract.new(validators.addresses, validators.powers, 2, 3, loom.address);
     gateway = await Gateway.new(vmc.address)
 
-    erc721 = await SampleERC721Token.new(gateway.address, "mintabletoken", "MINT721", {from: validator})
+    erc721 = await SampleERC721Token.new(gateway.address, {from: validator})
+    normalErc721 = await NormalERC721Token.new(gateway.address, {from: validator})
     erc721x = await ERC721XCards.new(gateway.address, "rinkeby.loom.games/", { from: validator })
     erc20 = await GameToken.new({ from: validator })
     badToken = await BadERC20Token.new({ from: validator })
-    erc20Mintable = await SampleERC20Token.new(gateway.address, "mintableToken", "MINT20", {from: validator})
+    erc20Mintable = await SampleERC20Token.new(gateway.address, {from: validator})
 
     await vmc.toggleAllowToken(erc721x.address, true, { from: validator })
 
@@ -59,6 +63,7 @@ contract('Transfer Gateway', async (accounts) => {
     await erc20.transfer(bob, ERC20_AMOUNT, { from: validator })
     await loom.transfer(alice, ERC20_AMOUNT, { from: validator })
     await badToken.transfer(alice, ERC20_AMOUNT, { from: validator })
+    await normalErc721.mintTokens(alice, {from: validator})
 
     validatorsTotalPower = await vmc.totalPower.call();
   })
@@ -167,6 +172,7 @@ contract('Transfer Gateway', async (accounts) => {
   describe('ERC20 deposit / withdrawals', async () => {
 
     let amount = ERC20_AMOUNT
+    let largeAmount = ERC20_AMOUNT_2
 
     it('Withdraw bad ERC20 token', async () => {
       await depositBadERC20(alice, amount)
@@ -188,12 +194,36 @@ contract('Transfer Gateway', async (accounts) => {
 
     it('Withdraw ERC20 mintable token with stake >= equal to threshold, without deposit', async () => {
       let nonce = await gateway.nonces.call(alice)
-      let hash = soliditySha3(TokenKind.ERC20, alice, nonce, gateway.address, soliditySha3(amount, erc20Mintable.address))
+      let hash = soliditySha3(TokenKind.ERC20, alice, nonce, gateway.address, soliditySha3(largeAmount, erc20Mintable.address))
       let sigs = await createSigns(validators, hash, validatorsTotalPower, threshold)
-      await gateway.withdrawMintableERC20(amount, erc20Mintable.address, sigs.signers, sigs.v, sigs.r, sigs.s, { from: alice });
-      assert.equal(await erc20Mintable.balanceOf.call(alice), amount)
+
+      // Gateway doesn't have any tokens so it will mint the entire withdrawal amount
+      await gateway.withdrawERC20(largeAmount, erc20Mintable.address, sigs.signers, sigs.v, sigs.r, sigs.s, { from: alice });
+      assert.equal(await erc20Mintable.balanceOf.call(alice), largeAmount)
     })
 
+    it('Withdraw ERC20 mintable token with stake >= equal to threshold, withdraw more than the gateway has', async () => {
+      await depositERC20(alice, amount)
+      let nonce = await gateway.nonces.call(alice)
+      let hash = soliditySha3(TokenKind.ERC20, alice, nonce, gateway.address, soliditySha3(largeAmount, erc20Mintable.address))
+      let sigs = await createSigns(validators, hash, validatorsTotalPower, threshold)
+
+      // Gateway doesn't have enough tokens so it will mint just enough to honor the withdrawal
+      await gateway.withdrawERC20(largeAmount, erc20Mintable.address, sigs.signers, sigs.v, sigs.r, sigs.s, { from: alice });
+      assert.equal(await erc20Mintable.balanceOf.call(alice), largeAmount)
+    })
+
+    it('Withdraw ERC20 mintable token with stake >= equal to threshold, withdraw less than the gateway has', async () => {
+      let less_amount = ERC20_AMOUNT_3
+      await depositERC20(alice, amount)
+      let nonce = await gateway.nonces.call(alice)
+      let hash = soliditySha3(TokenKind.ERC20, alice, nonce, gateway.address, soliditySha3(less_amount, erc20Mintable.address))
+      let sigs = await createSigns(validators, hash, validatorsTotalPower, threshold)
+      
+      // Gateway has enough tokens to honor the withdrawal and doesn't need to mint any
+      await gateway.withdrawERC20(less_amount, erc20Mintable.address, sigs.signers, sigs.v, sigs.r, sigs.s, { from: alice });
+      assert.equal(await erc20Mintable.balanceOf.call(alice), less_amount)
+    })
 
     it('Withdraw ERC20 with stake < threshold', async () => {
       await depositERC20(alice, amount)
@@ -278,13 +308,13 @@ contract('Transfer Gateway', async (accounts) => {
 
     let uid = 2;
     let other_uid = 4;
-    let new_uid = 99;
+    let new_uid = 9999;
     
-    it('Withdraw ERC721 with stake >= equal to threshold, without deposit', async () => {
+    it('Withdraw ERC721 with stake >= equal to threshold, without deposit for mintable tokens', async () => {
       let nonce = await gateway.nonces.call(alice)
       let hash = soliditySha3(TokenKind.ERC721, alice, nonce, gateway.address, soliditySha3(new_uid, erc721.address))
       let sigs = await createSigns(validators, hash, validatorsTotalPower, threshold)
-      await gateway.withdrawMintableERC721(new_uid, erc721.address, sigs.signers, sigs.v, sigs.r, sigs.s, { from: alice });
+      await gateway.withdrawERC721(new_uid, erc721.address, sigs.signers, sigs.v, sigs.r, sigs.s, { from: alice });
       assert.equal(await erc721.ownerOf.call(new_uid), alice)
     })
   
@@ -297,6 +327,15 @@ contract('Transfer Gateway', async (accounts) => {
 
       assert.equal(await erc721x.ownerOf.call(uid), alice)
     })  
+
+    it('Withdraw ERC721 with stake >= equal to threshold, for normal token', async () => {
+      await depositNormalERC721(alice, uid)
+      let nonce = await gateway.nonces.call(alice)
+      let hash = soliditySha3(TokenKind.ERC721, alice, nonce, gateway.address, soliditySha3(uid, normalErc721.address))
+      let sigs = await createSigns(validators, hash, validatorsTotalPower, threshold)
+      await gateway.withdrawERC721(uid, normalErc721.address, sigs.signers, sigs.v, sigs.r, sigs.s, { from: alice });
+      assert.equal(await normalErc721.ownerOf.call(uid), alice)
+    })   
 
     it('Cannot withdraw ERC721 with stake < threshold', async () => {
       await depositERC721(alice, uid)
@@ -317,7 +356,6 @@ contract('Transfer Gateway', async (accounts) => {
     it('Cannot reuse a sig to withdraw ERC721 (invalid nonce)', async () => {
       await depositERC721(alice, uid)
       await depositERC721(alice, other_uid)
-
       let nonce = await gateway.nonces.call(alice)
       let hash = soliditySha3(TokenKind.ERC721, alice, nonce, gateway.address, soliditySha3(uid, erc721x.address))
       let sigs = await createSigns(validators, hash, validatorsTotalPower, threshold)
@@ -338,6 +376,11 @@ contract('Transfer Gateway', async (accounts) => {
 
     async function depositERC721(from, uid) {
       await erc721x.depositToGatewayNFT(uid, { 'from': from })
+    }
+
+    async function depositNormalERC721(from, uid) {
+      await normalErc721.approve(gateway.address, uid, {'from': from})
+      await normalErc721.transferFrom(from, gateway.address, uid, { 'from': from })
     }
 
   });

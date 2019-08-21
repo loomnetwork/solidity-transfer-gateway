@@ -55,7 +55,8 @@ contract ERC20Gateway {
 
   /// @notice Function to withdraw ERC20 tokens from the Gateway. Emits a
   /// ERC20Withdrawn event, or a LoomCoinWithdrawn event if the coin is LOOM
-  /// token, according to the ValidatorManagerContract.
+  /// token, according to the ValidatorManagerContract. If withdrawal amount is more than current balance,
+  /// it will try to mint the token to user.
   /// @param  amount The amount being withdrawn
   /// @param  contractAddress The address of the token being withdrawn
   /// @param  _signersIndexes Array of indexes of the validator's signatures based on
@@ -84,11 +85,13 @@ contract ERC20Gateway {
     // Replay protection
     nonces[msg.sender]++;
 
+    uint256 bal = IERC20(contractAddress).balanceOf(address(this));
+    if (bal < amount) {
+      IERC20GatewayMintable(contractAddress).mintTo(address(this), amount - bal);
+    }
     IERC20(contractAddress).safeTransfer(msg.sender, amount);
     
-    TokenKind kind = contractAddress == loomAddress ? TokenKind.LoomCoin : TokenKind.ERC20;
-    emit TokenWithdrawn(msg.sender, kind, contractAddress, amount);
-
+    emit TokenWithdrawn(msg.sender, contractAddress == loomAddress ? TokenKind.LoomCoin : TokenKind.ERC20, contractAddress, amount);
   }
 
   // Approve and Deposit function for 2-step deposits
@@ -126,38 +129,4 @@ contract ERC20Gateway {
     );
   }
 
-  /// @notice Function to withdraw ERC20 tokens from the Gateway. Emits a
-  /// ERC20Withdrawn event.
-  /// @param  amount The amount being withdrawn
-  /// @param  contractAddress The address of the token being withdrawn
-  /// @param  _signersIndexes Array of indexes of the validator's signatures based on
-  ///         the currently elected validators
-  /// @param  _v Array of `v` values from the validator signatures
-  /// @param  _r Array of `r` values from the validator signatures
-  /// @param  _s Array of `s` values from the validator signatures
-  function withdrawMintableERC20(
-      uint256 amount,
-      address contractAddress,
-      uint256[] calldata _signersIndexes,
-      uint8[] calldata _v,
-      bytes32[] calldata _r,
-      bytes32[] calldata _s
-  )
-    external
-  {
-    bytes32 message = createMessageWithdraw(
-            "\x10Withdraw ERC20:\n",
-            keccak256(abi.encodePacked(amount, contractAddress))
-    );
-
-    // Ensure enough power has signed the withdrawal
-    vmc.checkThreshold(message, _signersIndexes, _v, _r, _s);
-
-    // Replay protection
-    nonces[msg.sender]++;
-
-    IERC20GatewayMintable(contractAddress).mintTo(msg.sender, amount);
-    emit TokenWithdrawn(msg.sender, TokenKind.ERC20, contractAddress, amount);
-
-  }
 }

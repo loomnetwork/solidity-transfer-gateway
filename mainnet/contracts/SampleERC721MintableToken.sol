@@ -1,12 +1,13 @@
-pragma solidity ^0.5.0;
+pragma solidity ^0.5.2;
 
 import "openzeppelin-solidity/contracts/token/ERC721/ERC721Mintable.sol";
+import "openzeppelin-solidity/contracts/token/ERC721/ERC721Full.sol";
 import "./IERC721GatewayMintable.sol";
 
 /**
  * @title ERC721 example for token contracts to be deployed to Ethereum.
  */
-contract SampleERC721MintableToken is ERC721Mintable, IERC721GatewayMintable {
+contract SampleERC721MintableToken is ERC721Mintable, ERC721Full, IERC721GatewayMintable {
     mapping (address => bool) gateways;
     string public name;
     string public symbol;
@@ -18,11 +19,11 @@ contract SampleERC721MintableToken is ERC721Mintable, IERC721GatewayMintable {
     event GatewayAdded(address gateway);
     event GatewayRemoved(address gateway);
 
-    constructor(address _gateway, string memory _name, string memory _symbol) public {
+    constructor(address _gateway) public ERC721Full(name, symbol) {
         gateways[_gateway] = true;
         validators[msg.sender] = true;
-        name = _name;
-        symbol = _symbol;
+        name = "ERC721Mint";
+        symbol = "MNT721";
     }
 
     function mintTo(address _address, uint256 _tokenId) public onlyGateway {
@@ -69,5 +70,4 @@ contract SampleERC721MintableToken is ERC721Mintable, IERC721GatewayMintable {
         gateways[_gateway] = false;
         emit GatewayRemoved(_gateway);
     }
-
 }

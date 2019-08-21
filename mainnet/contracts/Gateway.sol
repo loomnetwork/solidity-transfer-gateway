@@ -50,6 +50,7 @@ contract Gateway is ERC20Gateway, IERC721Receiver, ERC721XReceiver {
     public ERC20Gateway(_vmc) {
   }
 
+
   /// @notice Function to withdraw ERC721X tokens from the Gateway.
   /// @param  tokenId The tokenId being withdrawn
   /// @param  amount The amount being withdrawn
@@ -87,7 +88,8 @@ contract Gateway is ERC20Gateway, IERC721Receiver, ERC721XReceiver {
   }
 
 
-  /// @notice Function to withdraw ERC721 tokens from the Gateway.
+  /// @notice Function to withdraw ERC721 tokens from the Gateway. 
+  /// If the uid doesn't exists, the gateway will mint the uid to withdrawer.
   /// @param  uid The uid of the token being withdrawn
   /// @param  contractAddress The address of the token being withdrawn
   /// @param  _signersIndexes Array of indexes of the validator's signatures based on
@@ -116,7 +118,10 @@ contract Gateway is ERC20Gateway, IERC721Receiver, ERC721XReceiver {
     // Replay protection
     nonces[msg.sender]++;
 
-    IERC721(contractAddress).safeTransferFrom(address(this),  msg.sender, uid);    
+    bool ok = tryERC721TransferFrom(address(this), msg.sender, uid, contractAddress);
+    if (!ok) {
+        IERC721GatewayMintable(contractAddress).mintTo(msg.sender, uid);
+    }
     emit TokenWithdrawn(msg.sender, TokenKind.ERC721, contractAddress, uid);
 
   }
@@ -241,39 +246,13 @@ contract Gateway is ERC20Gateway, IERC721Receiver, ERC721XReceiver {
     return ERC721X(contractAddress).balanceOf(address(this), tokenId);
   }
 
-  /// @notice Function to withdraw ERC721 mintable tokens from the Gateway.
-  /// @param  uid The uid of the token being withdrawn
-  /// @param  contractAddress The address of the token being withdrawn
-  /// @param  _signersIndexes Array of indexes of the validator's signatures based on
-  ///         the currently elected validators
-  /// @param  _v Array of `v` values from the validator signatures
-  /// @param  _r Array of `r` values from the validator signatures
-  /// @param  _s Array of `s` values from the validator signatures
-  function withdrawMintableERC721(
-      uint256 uid,
-      address contractAddress,
-      uint256[] calldata _signersIndexes,
-      uint8[] calldata _v,
-      bytes32[] calldata _r,
-      bytes32[] calldata _s
-  )
-    external
-  {
-    bytes32 message = createMessageWithdraw(
-            "\x11Withdraw ERC721:\n",
-            keccak256(abi.encodePacked(uid, contractAddress))
-    );
-
-    // Ensure enough power has signed the withdrawal
-    vmc.checkThreshold(message, _signersIndexes, _v, _r, _s);
-
-    // Replay protection
-    nonces[msg.sender]++;
-
-    IERC721GatewayMintable(contractAddress).mintTo(msg.sender, uid);
-
-    emit TokenWithdrawn(msg.sender, TokenKind.ERC721, contractAddress, uid);
-
+  // This part is obtained from https://blog.polymath.network/try-catch-in-solidity-handling-the-revert-exception-f53718f76047
+  // to handle transaction revert in a try-catch like mechanism until try-catch is standardize.
+  function tryERC721TransferFrom(address _from, address _to, uint256 _uid, address _contractAddress) internal returns(bool) {
+    (bool success, ) = address(_contractAddress).call(
+                            abi.encodeWithSelector(
+                                IERC721(_contractAddress).transferFrom.selector, _from, _to, _uid)
+                            );
+    return success;
   }
-
 }

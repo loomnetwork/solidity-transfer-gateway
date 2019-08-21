@@ -23,7 +23,7 @@ contract('SampleERC721Token', accounts => {
     let sampleERC721Token
     
     beforeEach(async () => {
-        sampleERC721Token = await SampleERC721Token.new(gateway1, TOKEN_NAME, SYMBOL, {from: creator})
+        sampleERC721Token = await SampleERC721Token.new(gateway1, {from: creator})
         await sampleERC721Token.addValidator(validator1, {from: creator})
     })
 

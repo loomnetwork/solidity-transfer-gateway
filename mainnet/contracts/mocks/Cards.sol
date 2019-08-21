@@ -2,7 +2,6 @@ pragma solidity <0.6.0;
 
 import "openzeppelin-solidity/contracts/token/ERC721/ERC721Full.sol";
 
-
 contract CryptoCards is ERC721Full("CryptoCards", "CCC") {
 
     mapping(address => bool) private registered;

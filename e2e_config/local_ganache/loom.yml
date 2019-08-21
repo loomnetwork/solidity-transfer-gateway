@@ -20,7 +20,7 @@ BinanceTransferGateway:
 TransferGateway:
   ContractEnabled: true
   BatchSignFnConfig:
-    Enabled: false
+    Enabled: true
     MainnetPrivateKeyPath: "oracle_eth_priv.key"
   WithdrawalSig: 2
   # Enables the in-process Transfer Gateway Oracle.

@@ -1,4 +1,4 @@
-pragma solidity ^0.5.0;
+pragma solidity ^0.5.2;
 
 import "openzeppelin-solidity/contracts/token/ERC20/ERC20Mintable.sol";
 import "./IERC20GatewayMintable.sol";
@@ -20,11 +20,11 @@ contract SampleERC20MintableToken is ERC20Mintable, IERC20GatewayMintable {
     event GatewayAdded(address gateway);
     event GatewayRemoved(address gateway);
 
-    constructor(address _gateway, string memory _name, string memory _symbol) public {
+    constructor(address _gateway) public {
         gateways[_gateway] = true;
         validators[msg.sender] = true;
-        name = _name;
-        symbol = _symbol;
+        name = "erc20mintable";
+        symbol = "MNT20";
     }
 
     function mintTo(address _to, uint256 _amount) onlyGateway public {
@@ -71,5 +71,14 @@ contract SampleERC20MintableToken is ERC20Mintable, IERC20GatewayMintable {
         gateways[_gateway] = false;
         emit GatewayRemoved(_gateway);
     }
+
+    function isValidator(address validator) view public returns (bool) {
+        return validators[validator];
+    }
+
+    function isGateway(address gateway) view public returns (bool) {
+        return gateways[gateway];
+    }
+
 
 }
