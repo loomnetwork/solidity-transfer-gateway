@@ -30,6 +30,24 @@ contract ERC20Gateway {
   /// The LOOM token address
   address public loomAddress;
 
+  //  A boolean to enable and disable deposit and withdraw
+  bool isGatewayEnabled;
+
+  /// Booleans to permit depositing arbitrary tokens to the gateways
+  bool allowAnyToken;
+  mapping (address => bool) public allowedTokens;
+
+  // Contract deployer is the owner of this contract
+  address public owner;
+
+  function getOwner() public view returns(address) {
+    return owner;
+  }
+
+  function getAllowAnyToken() public view returns(bool) {
+    return allowAnyToken;
+  }
+
   /// The nonces per withdrawer to prevent replays
   mapping (address => uint256) public nonces;
 
@@ -51,6 +69,9 @@ contract ERC20Gateway {
   constructor(ValidatorManagerContract _vmc) public {
     vmc = _vmc;
     loomAddress = vmc.loomAddress();
+    owner = msg.sender;
+    isGatewayEnabled = true; // enable gateway by default
+    allowAnyToken = true; // enable depositing arbitrary tokens by default
   }
 
   /// @notice Function to withdraw ERC20 tokens from the Gateway. Emits a
@@ -72,6 +93,7 @@ contract ERC20Gateway {
       bytes32[] calldata _r,
       bytes32[] calldata _s
   )
+    gatewayEnabled
     external
   {
     bytes32 message = createMessageWithdraw(
@@ -96,7 +118,7 @@ contract ERC20Gateway {
 
   // Approve and Deposit function for 2-step deposits
   // Requires first to have called `approve` on the specified ERC20 contract
-  function depositERC20(uint256 amount, address contractAddress) external {
+  function depositERC20(uint256 amount, address contractAddress) gatewayEnabled external {
     IERC20(contractAddress).safeTransferFrom(msg.sender, address(this), amount);
 
     emit ERC20Received(msg.sender, amount, contractAddress);
@@ -127,6 +149,48 @@ contract ERC20Gateway {
         hash
       )
     );
+  }
+
+  modifier gatewayEnabled() {
+    require(isGatewayEnabled, "Gateway is disabled.");
+    _;
+  }
+
+  /// @notice The owner can toggle allowing any token to be deposited / withdrawn from or to gateway
+  /// @param enable a boolean value to enable or disable gateway
+  function enableGateway(bool enable) public {
+    require(msg.sender == owner, "enableGateway: only owner can enable or disable gateway");
+    isGatewayEnabled = enable;
+  }
+
+  /// @notice Checks if the gateway allows deposits & withdrawals.
+  /// @return true if deposits and withdrawals are allowed, false otherwise.
+  function getGatewayEnabled() public view returns(bool) {
+    return isGatewayEnabled;
+  }
+
+  /// @notice Checks if a token at `tokenAddress` is allowed
+  /// @param  tokenAddress The token's address
+  /// @return True if `allowAnyToken` is set, or if the token has been allowed
+  function isTokenAllowed(address tokenAddress) public view returns(bool) {
+    return allowAnyToken || allowedTokens[tokenAddress];
+  }
+
+  /// @notice The owner can toggle allowing any token to be deposited on
+  ///         the sidechain
+  /// @param allow Boolean to allow or not the token
+  function toggleAllowAnyToken(bool allow) public {
+    require(msg.sender == owner, "toggleAllowAnyToken: only owner can toggle");
+    allowAnyToken = allow;
+  }
+
+  /// @notice The owner can toggle allowing a token to be deposited on
+  ///         the sidechain
+  /// @param  tokenAddress The token address
+  /// @param  allow Boolean to allow or not the token
+  function toggleAllowToken(address tokenAddress, bool allow) public {
+    require(msg.sender == owner, "toggleAllowToken: only owner can toggle");
+    allowedTokens[tokenAddress] = allow;
   }
 
 }

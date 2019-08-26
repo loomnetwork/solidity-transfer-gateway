@@ -8,13 +8,4 @@ contract VMCMock is ValidatorManagerContract {
     ValidatorManagerContract(_validators, _powers, _threshold_num, _threshold_denom, _loomAddress)
 public {   }
 
-
-    function toggleAllowAnyToken(bool allow, uint256 validatorIndex) public {
-        validatorIndex;
-        allowAnyToken = allow;
-    }
-
-    function toggleAllowToken(address tokenAddress, bool allow) public {
-        allowedTokens[tokenAddress] = allow;
-    }
 }

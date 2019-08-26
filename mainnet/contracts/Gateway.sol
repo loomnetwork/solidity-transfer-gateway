@@ -69,6 +69,7 @@ contract Gateway is ERC20Gateway, IERC721Receiver, ERC721XReceiver {
       bytes32[] calldata _r,
       bytes32[] calldata _s
   )
+    gatewayEnabled
     external
   {
     bytes32 message = createMessageWithdraw(
@@ -81,7 +82,7 @@ contract Gateway is ERC20Gateway, IERC721Receiver, ERC721XReceiver {
 
     // Replay protection
     nonces[msg.sender]++;
-                       
+
     ERC721X(contractAddress).safeTransferFrom(address(this), msg.sender, tokenId, amount);
     emit TokenWithdrawn(msg.sender, TokenKind.ERC721X, contractAddress, amount);
 
@@ -105,6 +106,7 @@ contract Gateway is ERC20Gateway, IERC721Receiver, ERC721XReceiver {
       bytes32[] calldata _r,
       bytes32[] calldata _s
   )
+    gatewayEnabled
     external
   {
     bytes32 message = createMessageWithdraw(
@@ -140,6 +142,7 @@ contract Gateway is ERC20Gateway, IERC721Receiver, ERC721XReceiver {
       bytes32[] calldata _r,
       bytes32[] calldata _s
   )
+    gatewayEnabled
     external
   {
     bytes32 message = createMessageWithdraw(
@@ -170,10 +173,11 @@ contract Gateway is ERC20Gateway, IERC721Receiver, ERC721XReceiver {
       uint256 _amount,
       bytes memory _data
   )
+    gatewayEnabled
     public
     returns (bytes4)
   {
-    require(vmc.isTokenAllowed(msg.sender), "Not a valid token");
+    require(isTokenAllowed(msg.sender), "Not a valid token");
     emit ERC721XReceived(
         _operator,
         _from,
@@ -197,10 +201,11 @@ contract Gateway is ERC20Gateway, IERC721Receiver, ERC721XReceiver {
           uint256[] memory _amounts,
           bytes memory _data
   )
+    gatewayEnabled
     public
     returns(bytes4)
   {
-    require(vmc.isTokenAllowed(msg.sender), "Not a valid token");
+    require(isTokenAllowed(msg.sender), "Not a valid token");
     uint256 length = _types.length;
     require(length == _amounts.length, "Array lengths do not match");
     emit ERC721XBatchReceived(
@@ -219,16 +224,17 @@ contract Gateway is ERC20Gateway, IERC721Receiver, ERC721XReceiver {
   /// @param _uid Id of the token or tokenId
   /// @return ERC721_RECEIVED bytes function signature
   function onERC721Received(address _operator, address _from, uint256 _uid, bytes memory _data)
+    gatewayEnabled
     public
     returns (bytes4) 
   {
-    require(vmc.isTokenAllowed(msg.sender), "Not a valid token");
+    require(isTokenAllowed(msg.sender), "Not a valid token");
     emit ERC721Received(_operator, _from, _uid, msg.sender, _data);
     return this.onERC721Received.selector;
   }
 
   /// @notice Fallback function just emits an event
-  function () external payable {
+  function () gatewayEnabled external payable {
     emit ETHReceived(msg.sender, msg.value);
   }
 
@@ -255,4 +261,5 @@ contract Gateway is ERC20Gateway, IERC721Receiver, ERC721XReceiver {
                             );
     return success;
   }
+
 }

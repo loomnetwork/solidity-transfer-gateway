@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"gateway"
 	"io/ioutil"
-	"math/big"
 	"os"
 	"path"
 	"path/filepath"
@@ -25,7 +24,7 @@ import (
 	"github.com/loomnetwork/go-loom/client/erc721"
 	"github.com/loomnetwork/go-loom/client/erc721x"
 	gw "github.com/loomnetwork/go-loom/client/gateway"
-	vmc "github.com/loomnetwork/go-loom/client/validator_manager"
+	gwV2 "github.com/loomnetwork/go-loom/client/gateway_v2"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -168,27 +167,9 @@ func deploy(cmd *cobra.Command, args []string) error {
 		}
 
 		mainnetGatewayAddr := gateway.GetMainnetContractCfgString("mainnet_gateway_addr")
-		mainnetGateway, err := gw.ConnectToMainnetGateway(ethClient, mainnetGatewayAddr)
+		mainnetGateway, err := gwV2.ConnectToMainnetGateway(ethClient, mainnetGatewayAddr)
 		if err != nil {
 			return errors.Wrap(err, "failed to connect to Gateway on Ethereum network")
-		}
-
-		// Get Validator key
-		ethKey, dappchainKey = gateway.GetKeys("oracle")
-		val, err := loom_client.CreateIdentityStr(ethKey, dappchainKey, loomCfg.ChainID)
-		if err != nil {
-			return errors.Wrap(err, "failed to create identity for validator")
-		}
-
-		mainnetVmcAddr := gateway.GetMainnetContractCfgString("mainnet_validatorManagerContract_addr")
-		vmc, err := vmc.ConnectToMainnetVMCClient(ethClient, mainnetVmcAddr)
-		if err != nil {
-			return errors.Wrap(err, "failed to connect to Validator Manager Contract on Ethereum network")
-		}
-
-		ind := big.NewInt(0)
-		if err := vmc.ToggleAllowAnyToken(val, true, ind); err != nil {
-			return errors.Wrap(err, "failed to allow all tokens on VMC")
 		}
 
 		if ethereumContractsToDeploy["CryptoCards"] {

@@ -20,6 +20,8 @@ const { shouldFail } = require('openzeppelin-test-helpers');
 contract('Transfer Gateway', async (accounts) => {
   let gateway, erc20, erc721, erc721x, loom, vmc, erc20Mintable
   let [validator, alice, bob] = accounts
+  let owner = validator
+  let notOwner = bob
   let validators
   let valIndex, validatorsTotalPower
   let acc
@@ -51,7 +53,7 @@ contract('Transfer Gateway', async (accounts) => {
     badToken = await BadERC20Token.new({ from: validator })
     erc20Mintable = await SampleERC20Token.new(gateway.address, {from: validator})
 
-    await vmc.toggleAllowToken(erc721x.address, true, { from: validator })
+    await gateway.toggleAllowToken(erc721x.address, true, { from: validator })
 
     // Give Alice some coins
     let tokenIds = [...Array(5).keys()]
@@ -159,14 +161,6 @@ contract('Transfer Gateway', async (accounts) => {
       await shouldFail.reverting(reentrancy.attack())
     })
 
-    async function depositEther(from, amount) {
-      let tx = await gateway.sendTransaction({ 'from': from, 'value': amount })
-
-      // Check the user's balance
-      assertEventVar(tx, 'ETHReceived', 'from', from);
-      assertEventVar(tx, 'ETHReceived', 'amount', amount);
-      return tx;
-    }
   })
 
   describe('ERC20 deposit / withdrawals', async () => {
@@ -298,10 +292,7 @@ contract('Transfer Gateway', async (accounts) => {
       assert.equal(balance, amount)
     }
 
-    async function depositERC20(from, amount) {
-      await erc20.approve(gateway.address, amount, { 'from': from })
-      await gateway.depositERC20(amount, erc20.address, { 'from': from })
-    }
+
   })
 
   describe('ERC721 deposits / withdrawals', async () => {
@@ -373,11 +364,6 @@ contract('Transfer Gateway', async (accounts) => {
       await gateway.withdrawERC721(other_uid, erc721x.address, sigs.signers, sigs.v, sigs.r, sigs.s, { from: alice });
     })
 
-
-    async function depositERC721(from, uid) {
-      await erc721x.depositToGatewayNFT(uid, { 'from': from })
-    }
-
     async function depositNormalERC721(from, uid) {
       await normalErc721.approve(gateway.address, uid, {'from': from})
       await normalErc721.transferFrom(from, gateway.address, uid, { 'from': from })
@@ -445,9 +431,113 @@ contract('Transfer Gateway', async (accounts) => {
       await gateway.withdrawERC721X(uid, amount, erc721x.address, sigs.signers, sigs.v, sigs.r, sigs.s, { from: alice });
     })
 
-    async function depositERC721x(from, uid, amount) {
-      await erc721x.depositToGateway(uid, amount, { 'from': from })
-    }
+  });
+
+  describe('Disable deposits / withdrawals', async () => {
+    let amount = ETHER_AMOUNT
+    let amountErc20 = ERC20_AMOUNT
+    let amountErc721x = 50
+    let uidErc721 = 2
+    let uidErc721x = 0
+
+    it('Cannot deposit', async () => {
+      await gateway.enableGateway(false, { from: validator })
+      await shouldFail.reverting(depositEther(alice, amount))
+      await shouldFail.reverting(depositERC20(alice, amountErc20))
+      await shouldFail.reverting(depositERC721(alice, uidErc721))
+      await shouldFail.reverting(depositERC721x(alice, uidErc721x, amountErc721x))
+    })
+
+    it('Cannot withdraw', async () => {
+      await depositEther(alice, amount)
+      await depositERC20(alice, amountErc20)
+      await depositERC721(alice, uidErc721)
+      await depositERC721x(alice, uidErc721x, amountErc721x)
+
+      await gateway.enableGateway(false, { from: validator })
+
+      let nonce = await gateway.nonces.call(alice)
+      let hash = soliditySha3(TokenKind.ETH, alice, nonce, gateway.address, soliditySha3(amount))
+      let sigs = await createSigns(validators, hash, validatorsTotalPower, threshold)
+      await shouldFail.reverting(gateway.withdrawETH(amount, sigs.signers, sigs.v, sigs.r, sigs.s, { from: alice }))
+
+      nonce = await gateway.nonces.call(alice)
+      hash = soliditySha3(TokenKind.ERC20, alice, nonce, gateway.address, soliditySha3(amountErc20, erc20.address))
+      sigs = await createSigns(validators, hash, validatorsTotalPower, threshold)
+      await shouldFail.reverting(gateway.withdrawERC20(amountErc20, erc20.address, sigs.signers, sigs.v, sigs.r, sigs.s, { from: alice }));
+
+      nonce = await gateway.nonces.call(alice)
+      hash = soliditySha3(TokenKind.ERC721, alice, nonce, gateway.address, soliditySha3(uidErc721, normalErc721.address))
+      sigs = await createSigns(validators, hash, validatorsTotalPower, threshold)
+      await shouldFail.reverting(gateway.withdrawERC721(uidErc721, normalErc721.address, sigs.signers, sigs.v, sigs.r, sigs.s, { from: alice }));
+
+      nonce = await gateway.nonces.call(alice)
+      hash = soliditySha3(TokenKind.ERC721X, alice, nonce, gateway.address, soliditySha3(uidErc721x, amountErc721x, erc721x.address))
+      sigs = await createSigns(validators, hash, validatorsTotalPower, threshold)
+      await shouldFail.reverting(gateway.withdrawERC721X(uidErc721x, amountErc721x, erc721x.address, sigs.signers, sigs.v, sigs.r, sigs.s, { from: alice }));
+    })
 
   });
+
+  describe('Gateway permissions', async () => {
+
+    it('Only owner can disable and enable gateway', async () => {
+      let gatewayStatus = await gateway.getGatewayEnabled()
+      assert.equal(gatewayStatus, true, "gateway status has to be true")
+
+      await gateway.enableGateway(false, {from: owner})
+      gatewayStatus = await gateway.getGatewayEnabled()
+      assert.equal(gatewayStatus, false, "gateway status has to be false")
+
+      await shouldFail.reverting(gateway.enableGateway(true, {from: notOwner}))
+    })
+
+    it('Only owner can disable and enable toggleAllowAnyToken', async () => {
+      let allowAnyTokenStatus = await gateway.getAllowAnyToken()
+      await assert.equal(allowAnyTokenStatus, true, "allowAnyTokenStatus has to be true")
+
+      await gateway.toggleAllowAnyToken(false, {from: owner})
+      allowAnyTokenStatus = await gateway.getAllowAnyToken()
+      await assert.equal(allowAnyTokenStatus, false, "allowAnyTokenStatus has to be false")
+
+      await shouldFail.reverting(gateway.toggleAllowAnyToken(true, {from: notOwner}))
+    })
+
+    it('Only owner can disable and enable toggleAllowToken', async () => {
+      await gateway.toggleAllowAnyToken(false, {from: owner})
+
+      let isTokenAllowedStatus = await gateway.isTokenAllowed(erc20.address)
+       assert.equal(isTokenAllowedStatus, false, "isTokenAllowedStatus has to be false")
+
+      await gateway.toggleAllowToken(erc20.address, true, {from: owner})
+      isTokenAllowedStatus = await gateway.isTokenAllowed(erc20.address)
+      assert.equal(isTokenAllowedStatus, true, "isTokenAllowedStatus has to be true")
+
+      await shouldFail.reverting(gateway.toggleAllowToken(erc20.address, false, {from: notOwner}))
+    })
+  });
+
+  async function depositEther(from, amount) {
+    let tx = await gateway.sendTransaction({ 'from': from, 'value': amount })
+  
+    // Check the user's balance
+    assertEventVar(tx, 'ETHReceived', 'from', from);
+    assertEventVar(tx, 'ETHReceived', 'amount', amount);
+    return tx;
+  }
+
+  async function depositERC20(from, amount) {
+    await erc20.approve(gateway.address, amount, { 'from': from })
+    await gateway.depositERC20(amount, erc20.address, { 'from': from })
+  }
+
+  async function depositERC721(from, uid) {
+    await erc721x.depositToGatewayNFT(uid, { 'from': from })
+  }
+
+  async function depositERC721x(from, uid, amount) {
+    await erc721x.depositToGateway(uid, amount, { 'from': from })
+  }
+
+
 })

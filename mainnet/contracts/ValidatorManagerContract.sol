@@ -5,8 +5,6 @@ import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 contract ValidatorManagerContract {
     using SafeMath for uint256;
 
-    uint256 constant MAX_VALIDATORS_SIZE = 21;
-
     /// \frac{threshold_num}{threshold_denom} signatures are required for
     /// validator approval to be granted
     uint8 public threshold_num;
@@ -20,10 +18,6 @@ contract ValidatorManagerContract {
 
     /// The current sum of powers of currently elected validators
     uint256 public totalPower;
-
-    /// Booleans to permit depositing arbitrary tokens to the gateways
-    bool allowAnyToken;
-    mapping (address => bool) public allowedTokens;
 
     /// Nonce tracking per to prevent replay attacks on signature
     /// submission during validator rotation
@@ -68,16 +62,10 @@ contract ValidatorManagerContract {
     ) 
         public 
     {
-        uint256 length = _validators.length;
-        require(length > 0 && length <= MAX_VALIDATORS_SIZE, 
-                "Must provide more than 0 and no more that MAX_VALIDATORS_SIZE validators"
-        );
-
         threshold_num = _threshold_num;
         threshold_denom = _threshold_denom;
         require(threshold_num <= threshold_denom && threshold_num > 0, "Invalid threshold fraction.");
         loomAddress = _loomAddress;
-
         _rotateValidators(_validators, _powers);
     }
 
@@ -251,32 +239,7 @@ contract ValidatorManagerContract {
                 threshold_num, "checkThreshold:: Not enough power from validators");
     }
 
-    /// @notice Checks if a token at `tokenAddress` is allowed
-    /// @param  tokenAddress The token's address
-    /// @return True if `allowAnyToken` is set, or if the token has been allowed
-    function isTokenAllowed(address tokenAddress) public view returns(bool) {
-        return allowAnyToken || allowedTokens[tokenAddress];
-    }
 
-    /// @notice A validator can toggle allowing any token to be deposited on
-    ///         the sidechain
-    /// @param allow Boolean to allow or not the token
-    /// @param validatorIndex the validator's index
-    function toggleAllowAnyToken(bool allow, uint256 validatorIndex) public {
-        require(msg.sender == validators[validatorIndex], "toggleAllowAnyToken: Not a validator");
-        allowAnyToken = allow;
-    }
-
-    /// @notice A validator can toggle allowing a token to be deposited on
-    ///         the sidechain
-    /// @param  tokenAddress The token address
-    /// @param  allow Boolean to allow or not the token
-    /// @param  validatorIndex the validator's index
-    function toggleAllowToken(address tokenAddress, bool allow, uint256 validatorIndex) public {
-        require(msg.sender == validators[validatorIndex], "toggleAllowAnyToken: Not a validator");
-        allowedTokens[tokenAddress] = allow;
-
-    }
 
     /// @notice Internal method that updates the state with the new validator
     ///         set and powers, as well as the new total power
@@ -285,13 +248,9 @@ contract ValidatorManagerContract {
     function _rotateValidators(address[] memory _validators, uint64[] memory _powers) internal {
         uint256 val_length = _validators.length;
 
-        require(val_length > 0 && val_length <= MAX_VALIDATORS_SIZE, 
-                "Must provide more than 0 and no more that MAX_VALIDATORS_SIZE validators"
-        );
+        require(val_length == _powers.length, "_rotateValidators: Array lengths do not match!");
 
-        require(val_length == _powers.length, 
-                "_rotateValidators: Array lengths do not match!"
-        );
+        require(val_length > 0, "Must provide more than 0 validators");
 
         uint256 _totalPower = 0;
         for (uint256 i = 0; i < val_length; i++) {
@@ -324,4 +283,5 @@ contract ValidatorManagerContract {
             )
         );
     }
+
 }

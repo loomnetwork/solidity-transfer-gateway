@@ -16,7 +16,7 @@ import (
 )
 
 // ERC20GatewayABI is the input ABI used to generate the binding from.
-const ERC20GatewayABI = "[{\"constant\":true,\"inputs\":[],\"name\":\"vmc\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"loomAddress\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"\",\"type\":\"address\"}],\"name\":\"nonces\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"name\":\"_vmc\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"owner\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"kind\",\"type\":\"uint8\"},{\"indexed\":false,\"name\":\"contractAddress\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"value\",\"type\":\"uint256\"}],\"name\":\"TokenWithdrawn\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"from\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"amount\",\"type\":\"uint256\"},{\"indexed\":false,\"name\":\"loomCoinAddress\",\"type\":\"address\"}],\"name\":\"LoomCoinReceived\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"from\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"amount\",\"type\":\"uint256\"},{\"indexed\":false,\"name\":\"contractAddress\",\"type\":\"address\"}],\"name\":\"ERC20Received\",\"type\":\"event\"},{\"constant\":false,\"inputs\":[{\"name\":\"amount\",\"type\":\"uint256\"},{\"name\":\"contractAddress\",\"type\":\"address\"},{\"name\":\"_signersIndexes\",\"type\":\"uint256[]\"},{\"name\":\"_v\",\"type\":\"uint8[]\"},{\"name\":\"_r\",\"type\":\"bytes32[]\"},{\"name\":\"_s\",\"type\":\"bytes32[]\"}],\"name\":\"withdrawERC20\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"amount\",\"type\":\"uint256\"},{\"name\":\"contractAddress\",\"type\":\"address\"}],\"name\":\"depositERC20\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"contractAddress\",\"type\":\"address\"}],\"name\":\"getERC20\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"}]"
+const ERC20GatewayABI = "[{\"constant\":true,\"inputs\":[],\"name\":\"vmc\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"loomAddress\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"\",\"type\":\"address\"}],\"name\":\"nonces\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"\",\"type\":\"address\"}],\"name\":\"allowedTokens\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"name\":\"_vmc\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"owner\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"kind\",\"type\":\"uint8\"},{\"indexed\":false,\"name\":\"contractAddress\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"value\",\"type\":\"uint256\"}],\"name\":\"TokenWithdrawn\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"from\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"amount\",\"type\":\"uint256\"},{\"indexed\":false,\"name\":\"loomCoinAddress\",\"type\":\"address\"}],\"name\":\"LoomCoinReceived\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"from\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"amount\",\"type\":\"uint256\"},{\"indexed\":false,\"name\":\"contractAddress\",\"type\":\"address\"}],\"name\":\"ERC20Received\",\"type\":\"event\"},{\"constant\":true,\"inputs\":[],\"name\":\"getOwner\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getAllowAnyToken\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"amount\",\"type\":\"uint256\"},{\"name\":\"contractAddress\",\"type\":\"address\"},{\"name\":\"_signersIndexes\",\"type\":\"uint256[]\"},{\"name\":\"_v\",\"type\":\"uint8[]\"},{\"name\":\"_r\",\"type\":\"bytes32[]\"},{\"name\":\"_s\",\"type\":\"bytes32[]\"}],\"name\":\"withdrawERC20\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"amount\",\"type\":\"uint256\"},{\"name\":\"contractAddress\",\"type\":\"address\"}],\"name\":\"depositERC20\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"contractAddress\",\"type\":\"address\"}],\"name\":\"getERC20\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"enable\",\"type\":\"bool\"}],\"name\":\"enableGateway\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"getGatewayEnabled\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"tokenAddress\",\"type\":\"address\"}],\"name\":\"isTokenAllowed\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"allow\",\"type\":\"bool\"}],\"name\":\"toggleAllowAnyToken\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"tokenAddress\",\"type\":\"address\"},{\"name\":\"allow\",\"type\":\"bool\"}],\"name\":\"toggleAllowToken\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]"
 
 // ERC20Gateway is an auto generated Go binding around an Ethereum contract.
 type ERC20Gateway struct {
@@ -160,6 +160,58 @@ func (_ERC20Gateway *ERC20GatewayTransactorRaw) Transact(opts *bind.TransactOpts
 	return _ERC20Gateway.Contract.contract.Transact(opts, method, params...)
 }
 
+// AllowedTokens is a free data retrieval call binding the contract method 0xe744092e.
+//
+// Solidity: function allowedTokens( address) constant returns(bool)
+func (_ERC20Gateway *ERC20GatewayCaller) AllowedTokens(opts *bind.CallOpts, arg0 common.Address) (bool, error) {
+	var (
+		ret0 = new(bool)
+	)
+	out := ret0
+	err := _ERC20Gateway.contract.Call(opts, out, "allowedTokens", arg0)
+	return *ret0, err
+}
+
+// AllowedTokens is a free data retrieval call binding the contract method 0xe744092e.
+//
+// Solidity: function allowedTokens( address) constant returns(bool)
+func (_ERC20Gateway *ERC20GatewaySession) AllowedTokens(arg0 common.Address) (bool, error) {
+	return _ERC20Gateway.Contract.AllowedTokens(&_ERC20Gateway.CallOpts, arg0)
+}
+
+// AllowedTokens is a free data retrieval call binding the contract method 0xe744092e.
+//
+// Solidity: function allowedTokens( address) constant returns(bool)
+func (_ERC20Gateway *ERC20GatewayCallerSession) AllowedTokens(arg0 common.Address) (bool, error) {
+	return _ERC20Gateway.Contract.AllowedTokens(&_ERC20Gateway.CallOpts, arg0)
+}
+
+// GetAllowAnyToken is a free data retrieval call binding the contract method 0x2fc85c52.
+//
+// Solidity: function getAllowAnyToken() constant returns(bool)
+func (_ERC20Gateway *ERC20GatewayCaller) GetAllowAnyToken(opts *bind.CallOpts) (bool, error) {
+	var (
+		ret0 = new(bool)
+	)
+	out := ret0
+	err := _ERC20Gateway.contract.Call(opts, out, "getAllowAnyToken")
+	return *ret0, err
+}
+
+// GetAllowAnyToken is a free data retrieval call binding the contract method 0x2fc85c52.
+//
+// Solidity: function getAllowAnyToken() constant returns(bool)
+func (_ERC20Gateway *ERC20GatewaySession) GetAllowAnyToken() (bool, error) {
+	return _ERC20Gateway.Contract.GetAllowAnyToken(&_ERC20Gateway.CallOpts)
+}
+
+// GetAllowAnyToken is a free data retrieval call binding the contract method 0x2fc85c52.
+//
+// Solidity: function getAllowAnyToken() constant returns(bool)
+func (_ERC20Gateway *ERC20GatewayCallerSession) GetAllowAnyToken() (bool, error) {
+	return _ERC20Gateway.Contract.GetAllowAnyToken(&_ERC20Gateway.CallOpts)
+}
+
 // GetERC20 is a free data retrieval call binding the contract method 0x4e0dc557.
 //
 // Solidity: function getERC20(contractAddress address) constant returns(uint256)
@@ -184,6 +236,84 @@ func (_ERC20Gateway *ERC20GatewaySession) GetERC20(contractAddress common.Addres
 // Solidity: function getERC20(contractAddress address) constant returns(uint256)
 func (_ERC20Gateway *ERC20GatewayCallerSession) GetERC20(contractAddress common.Address) (*big.Int, error) {
 	return _ERC20Gateway.Contract.GetERC20(&_ERC20Gateway.CallOpts, contractAddress)
+}
+
+// GetGatewayEnabled is a free data retrieval call binding the contract method 0xe32f3751.
+//
+// Solidity: function getGatewayEnabled() constant returns(bool)
+func (_ERC20Gateway *ERC20GatewayCaller) GetGatewayEnabled(opts *bind.CallOpts) (bool, error) {
+	var (
+		ret0 = new(bool)
+	)
+	out := ret0
+	err := _ERC20Gateway.contract.Call(opts, out, "getGatewayEnabled")
+	return *ret0, err
+}
+
+// GetGatewayEnabled is a free data retrieval call binding the contract method 0xe32f3751.
+//
+// Solidity: function getGatewayEnabled() constant returns(bool)
+func (_ERC20Gateway *ERC20GatewaySession) GetGatewayEnabled() (bool, error) {
+	return _ERC20Gateway.Contract.GetGatewayEnabled(&_ERC20Gateway.CallOpts)
+}
+
+// GetGatewayEnabled is a free data retrieval call binding the contract method 0xe32f3751.
+//
+// Solidity: function getGatewayEnabled() constant returns(bool)
+func (_ERC20Gateway *ERC20GatewayCallerSession) GetGatewayEnabled() (bool, error) {
+	return _ERC20Gateway.Contract.GetGatewayEnabled(&_ERC20Gateway.CallOpts)
+}
+
+// GetOwner is a free data retrieval call binding the contract method 0x893d20e8.
+//
+// Solidity: function getOwner() constant returns(address)
+func (_ERC20Gateway *ERC20GatewayCaller) GetOwner(opts *bind.CallOpts) (common.Address, error) {
+	var (
+		ret0 = new(common.Address)
+	)
+	out := ret0
+	err := _ERC20Gateway.contract.Call(opts, out, "getOwner")
+	return *ret0, err
+}
+
+// GetOwner is a free data retrieval call binding the contract method 0x893d20e8.
+//
+// Solidity: function getOwner() constant returns(address)
+func (_ERC20Gateway *ERC20GatewaySession) GetOwner() (common.Address, error) {
+	return _ERC20Gateway.Contract.GetOwner(&_ERC20Gateway.CallOpts)
+}
+
+// GetOwner is a free data retrieval call binding the contract method 0x893d20e8.
+//
+// Solidity: function getOwner() constant returns(address)
+func (_ERC20Gateway *ERC20GatewayCallerSession) GetOwner() (common.Address, error) {
+	return _ERC20Gateway.Contract.GetOwner(&_ERC20Gateway.CallOpts)
+}
+
+// IsTokenAllowed is a free data retrieval call binding the contract method 0xf9eaee0d.
+//
+// Solidity: function isTokenAllowed(tokenAddress address) constant returns(bool)
+func (_ERC20Gateway *ERC20GatewayCaller) IsTokenAllowed(opts *bind.CallOpts, tokenAddress common.Address) (bool, error) {
+	var (
+		ret0 = new(bool)
+	)
+	out := ret0
+	err := _ERC20Gateway.contract.Call(opts, out, "isTokenAllowed", tokenAddress)
+	return *ret0, err
+}
+
+// IsTokenAllowed is a free data retrieval call binding the contract method 0xf9eaee0d.
+//
+// Solidity: function isTokenAllowed(tokenAddress address) constant returns(bool)
+func (_ERC20Gateway *ERC20GatewaySession) IsTokenAllowed(tokenAddress common.Address) (bool, error) {
+	return _ERC20Gateway.Contract.IsTokenAllowed(&_ERC20Gateway.CallOpts, tokenAddress)
+}
+
+// IsTokenAllowed is a free data retrieval call binding the contract method 0xf9eaee0d.
+//
+// Solidity: function isTokenAllowed(tokenAddress address) constant returns(bool)
+func (_ERC20Gateway *ERC20GatewayCallerSession) IsTokenAllowed(tokenAddress common.Address) (bool, error) {
+	return _ERC20Gateway.Contract.IsTokenAllowed(&_ERC20Gateway.CallOpts, tokenAddress)
 }
 
 // LoomAddress is a free data retrieval call binding the contract method 0x37179db8.
@@ -238,6 +368,32 @@ func (_ERC20Gateway *ERC20GatewayCallerSession) Nonces(arg0 common.Address) (*bi
 	return _ERC20Gateway.Contract.Nonces(&_ERC20Gateway.CallOpts, arg0)
 }
 
+// Owner is a free data retrieval call binding the contract method 0x8da5cb5b.
+//
+// Solidity: function owner() constant returns(address)
+func (_ERC20Gateway *ERC20GatewayCaller) Owner(opts *bind.CallOpts) (common.Address, error) {
+	var (
+		ret0 = new(common.Address)
+	)
+	out := ret0
+	err := _ERC20Gateway.contract.Call(opts, out, "owner")
+	return *ret0, err
+}
+
+// Owner is a free data retrieval call binding the contract method 0x8da5cb5b.
+//
+// Solidity: function owner() constant returns(address)
+func (_ERC20Gateway *ERC20GatewaySession) Owner() (common.Address, error) {
+	return _ERC20Gateway.Contract.Owner(&_ERC20Gateway.CallOpts)
+}
+
+// Owner is a free data retrieval call binding the contract method 0x8da5cb5b.
+//
+// Solidity: function owner() constant returns(address)
+func (_ERC20Gateway *ERC20GatewayCallerSession) Owner() (common.Address, error) {
+	return _ERC20Gateway.Contract.Owner(&_ERC20Gateway.CallOpts)
+}
+
 // Vmc is a free data retrieval call binding the contract method 0x20cc8e51.
 //
 // Solidity: function vmc() constant returns(address)
@@ -283,6 +439,69 @@ func (_ERC20Gateway *ERC20GatewaySession) DepositERC20(amount *big.Int, contract
 // Solidity: function depositERC20(amount uint256, contractAddress address) returns()
 func (_ERC20Gateway *ERC20GatewayTransactorSession) DepositERC20(amount *big.Int, contractAddress common.Address) (*types.Transaction, error) {
 	return _ERC20Gateway.Contract.DepositERC20(&_ERC20Gateway.TransactOpts, amount, contractAddress)
+}
+
+// EnableGateway is a paid mutator transaction binding the contract method 0x41c25c4a.
+//
+// Solidity: function enableGateway(enable bool) returns()
+func (_ERC20Gateway *ERC20GatewayTransactor) EnableGateway(opts *bind.TransactOpts, enable bool) (*types.Transaction, error) {
+	return _ERC20Gateway.contract.Transact(opts, "enableGateway", enable)
+}
+
+// EnableGateway is a paid mutator transaction binding the contract method 0x41c25c4a.
+//
+// Solidity: function enableGateway(enable bool) returns()
+func (_ERC20Gateway *ERC20GatewaySession) EnableGateway(enable bool) (*types.Transaction, error) {
+	return _ERC20Gateway.Contract.EnableGateway(&_ERC20Gateway.TransactOpts, enable)
+}
+
+// EnableGateway is a paid mutator transaction binding the contract method 0x41c25c4a.
+//
+// Solidity: function enableGateway(enable bool) returns()
+func (_ERC20Gateway *ERC20GatewayTransactorSession) EnableGateway(enable bool) (*types.Transaction, error) {
+	return _ERC20Gateway.Contract.EnableGateway(&_ERC20Gateway.TransactOpts, enable)
+}
+
+// ToggleAllowAnyToken is a paid mutator transaction binding the contract method 0xe402fbc8.
+//
+// Solidity: function toggleAllowAnyToken(allow bool) returns()
+func (_ERC20Gateway *ERC20GatewayTransactor) ToggleAllowAnyToken(opts *bind.TransactOpts, allow bool) (*types.Transaction, error) {
+	return _ERC20Gateway.contract.Transact(opts, "toggleAllowAnyToken", allow)
+}
+
+// ToggleAllowAnyToken is a paid mutator transaction binding the contract method 0xe402fbc8.
+//
+// Solidity: function toggleAllowAnyToken(allow bool) returns()
+func (_ERC20Gateway *ERC20GatewaySession) ToggleAllowAnyToken(allow bool) (*types.Transaction, error) {
+	return _ERC20Gateway.Contract.ToggleAllowAnyToken(&_ERC20Gateway.TransactOpts, allow)
+}
+
+// ToggleAllowAnyToken is a paid mutator transaction binding the contract method 0xe402fbc8.
+//
+// Solidity: function toggleAllowAnyToken(allow bool) returns()
+func (_ERC20Gateway *ERC20GatewayTransactorSession) ToggleAllowAnyToken(allow bool) (*types.Transaction, error) {
+	return _ERC20Gateway.Contract.ToggleAllowAnyToken(&_ERC20Gateway.TransactOpts, allow)
+}
+
+// ToggleAllowToken is a paid mutator transaction binding the contract method 0xb82730ab.
+//
+// Solidity: function toggleAllowToken(tokenAddress address, allow bool) returns()
+func (_ERC20Gateway *ERC20GatewayTransactor) ToggleAllowToken(opts *bind.TransactOpts, tokenAddress common.Address, allow bool) (*types.Transaction, error) {
+	return _ERC20Gateway.contract.Transact(opts, "toggleAllowToken", tokenAddress, allow)
+}
+
+// ToggleAllowToken is a paid mutator transaction binding the contract method 0xb82730ab.
+//
+// Solidity: function toggleAllowToken(tokenAddress address, allow bool) returns()
+func (_ERC20Gateway *ERC20GatewaySession) ToggleAllowToken(tokenAddress common.Address, allow bool) (*types.Transaction, error) {
+	return _ERC20Gateway.Contract.ToggleAllowToken(&_ERC20Gateway.TransactOpts, tokenAddress, allow)
+}
+
+// ToggleAllowToken is a paid mutator transaction binding the contract method 0xb82730ab.
+//
+// Solidity: function toggleAllowToken(tokenAddress address, allow bool) returns()
+func (_ERC20Gateway *ERC20GatewayTransactorSession) ToggleAllowToken(tokenAddress common.Address, allow bool) (*types.Transaction, error) {
+	return _ERC20Gateway.Contract.ToggleAllowToken(&_ERC20Gateway.TransactOpts, tokenAddress, allow)
 }
 
 // WithdrawERC20 is a paid mutator transaction binding the contract method 0xb0116dc7.
