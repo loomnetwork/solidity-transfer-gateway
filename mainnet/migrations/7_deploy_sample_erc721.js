@@ -1,6 +1,3 @@
-const fs = require('fs')
-const path = require('path')
-
 const SampleERC721MintableToken = artifacts.require('SampleERC721MintableToken')
 const Gateway = artifacts.require('Gateway')
 

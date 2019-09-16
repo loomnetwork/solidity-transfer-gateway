@@ -1,5 +1,5 @@
 // vmc and gateway
-const ValidatorManagerContract = artifacts.require('VMCMock')
+const ValidatorManagerContract = artifacts.require('ValidatorManagerContract')
 const Gateway = artifacts.require('Gateway')
 
 // Tokens

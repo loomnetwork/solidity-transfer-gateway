@@ -3,7 +3,6 @@ const path = require('path')
 
 const ERC20Gateway = artifacts.require('ERC20Gateway')
 const ValidatorManagerContract = artifacts.require('ValidatorManagerContract')
-const MockVMC = artifacts.require('VMCMock')
 
 module.exports = async function (deployer, network, accounts) {
   if (network === 'test') { return }
@@ -12,8 +11,7 @@ module.exports = async function (deployer, network, accounts) {
   let vmcAddress
 
   if (network == 'local_ganache' || network == 'develop' || network == 'test' || network == 'rinkeby') {
-      deployedVMC = network === 'local_ganache' ? MockVMC : ValidatorManagerContract
-      vmcAddress = deployedVMC.address
+      vmcAddress = ValidatorManagerContract.address
   } else {
       // Insert mainnet VMC contract address
       vmcAddress = "0xa4e8c3ec456107ea67d3075bf9e3df3a75823db0"

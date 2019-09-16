@@ -3,7 +3,8 @@ const path = require('path')
 
 const Loom = artifacts.require('LoomToken')
 const ValidatorManagerContract = artifacts.require('ValidatorManagerContract')
-const MockVMC = artifacts.require('VMCMock')
+
+
 
 module.exports = async function (deployer, network, accounts) {
   if (network === 'test') { return }
@@ -15,8 +16,6 @@ module.exports = async function (deployer, network, accounts) {
   
   console.log(`Deploying Validator Manager Contract from account: ${vmcCreator}`)
 
-  console.log(accounts)
-
   const secretsFile = process.env.SECRET_FILE
   let secrets = null
 
@@ -26,11 +25,10 @@ module.exports = async function (deployer, network, accounts) {
     secrets = JSON.parse(fs.readFileSync(secretsFile, "utf8"))
     validators = secrets.validators.map(v => v.address)
     powers = secrets.validators.map(v => v.power)
-    threshold_num = secrets.threshold_num
-    threshold_denom = secrets.threshold_denom
   }
 
   console.log(validators)
+  console.log(powers)
 
     // Deploy the VMC
     let loomAddress
@@ -40,14 +38,10 @@ module.exports = async function (deployer, network, accounts) {
         loomAddress = '0xa4e8c3ec456107ea67d3075bf9e3df3a75823db0' // TODO: Hardcode mainnet address for VMC - this MUST be always the same
     }
 
-    deployedVMC = network === 'local_ganache' ? MockVMC : ValidatorManagerContract
-    await deployer.deploy(deployedVMC, validators, powers, threshold_num, threshold_denom, loomAddress, { from: vmcCreator })
-    const validatorManagerContractInstance = await deployedVMC.deployed()
+    await deployer.deploy(ValidatorManagerContract, validators, powers, threshold_num, threshold_denom, loomAddress, { from: vmcCreator })
+    const validatorManagerContractInstance = await ValidatorManagerContract.deployed()
 
-    let netId = await web3.eth.net.getId()
-    let txHash = deployedVMC['networks'][netId].transactionHash
-    let tx = await web3.eth.getTransaction(txHash)
-
+    console.log("writing to file")
     let logs = []
     for (let i = 0; i < validators.length; i++) {
       logs.push(`mainnet_validatorManagerContract_validator_${i}: "Address: ${validators[i]} / Power: ${powers[i]}"`)
@@ -55,7 +49,6 @@ module.exports = async function (deployer, network, accounts) {
     logs.push(
       `mainnet_validatorManagerContract_creator_addr: "${vmcCreator}"`,
       `mainnet_validatorManagerContract_addr: "${validatorManagerContractInstance.address}"`,
-      `mainnet_validatorManagerContract_blk: "${tx.blockNumber}"`,
     )
 
     try {
