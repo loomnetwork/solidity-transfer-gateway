@@ -57,8 +57,8 @@ module.exports = async function (callback) {
     const gatewayAddr = process.argv[4]
     const filename = process.argv[6]
 
-    let result = await ContractMapping.data.map(async (token) => {
-      let tokenAddr = token.Foreign.toLowerCase()
+    let result = await ContractMapping.confirmed.map(async (token) => {
+      let tokenAddr = token.foreign.toLowerCase()
       try {
         // Try if token is erc721x compatible
         let token721xInstance = await SampleERC721x.at(tokenAddr)
@@ -74,7 +74,6 @@ module.exports = async function (callback) {
         if (!error.message.includes(ERR_MSG.INVALID_RETURN_VALUE)) {
           console.log(error.message);
         }
-        
         try {
           let token721Instance = await SampleERC721MintableToken.at(tokenAddr)
           let balance = await token721Instance.balanceOf(gatewayAddr)
@@ -86,7 +85,10 @@ module.exports = async function (callback) {
             tokenIndex: tokenIndex
           }
         } catch (error) {
-          if (error.message.includes(ERR_MSG.INVALID_RETURN_VALUE)) {
+          if (!error.message.includes(ERR_MSG.INVALID_RETURN_VALUE)) {
+            console.log(error.message);
+          }
+          try {
             let token20instance = await SampleERC20MintableToken.at(tokenAddr)
             let balance = await token20instance.balanceOf(gatewayAddr)
             return {
@@ -94,7 +96,7 @@ module.exports = async function (callback) {
               tokenKind: TOKEN_KIND.ERC20,
               balance: balance.toString()
             }
-          } else { 
+          } catch (error) {            
             return {
               token: tokenAddr,
               tokenKind: TOKEN_KIND.UNDEFINED
@@ -103,7 +105,6 @@ module.exports = async function (callback) {
         }
       }
     })
-
     const resolved = await Promise.all(result)
     fs.writeFileSync(filename, JSON.stringify({ result: resolved }))
     console.log("Completed");
@@ -127,7 +128,9 @@ async function getTokenByIndex(gatewayAddr, tokenAddr) {
       console.log(tokenAddr, "index=", index, "tokenId=", tokenId.toString());
     }
 
-    console.log(tokenAddr, "ownedToken", ownedToken.toString());
+    if (ownedToken.length > 0) { 
+      console.log(tokenAddr, "ownedToken", ownedToken.toString());
+    }
     return ownedToken
   } catch (error) {
     throw error
