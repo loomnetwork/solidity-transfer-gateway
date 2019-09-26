@@ -22,7 +22,7 @@ pkill -f binance_tgoracle || true
 
 #load specific number of LOOM_BIN
 rm -rf loom loom-gateway binance_tgoracle tgoracle loomcoin_tgoracle
-export BUILD_ID=build-1225
+export BUILD_ID=build-1284
 
 
 
@@ -40,14 +40,14 @@ fi
 
 
 
-wget https://private.delegatecall.com/loom/$PLATFORM/$BUILD_ID/loom-gateway
+wget https://downloads.loomx.io/loom/$PLATFORM/$BUILD_ID/loom-gateway
 chmod +x loom-gateway
 mv loom-gateway loom
 export LOOM_BIN=`pwd`/loom
 
-wget https://private.delegatecall.com/loom/$PLATFORM/$BUILD_ID/loomcoin_tgoracle
+wget https://downloads.loomx.io/loom/$PLATFORM/$BUILD_ID/loomcoin_tgoracle
 chmod +x loomcoin_tgoracle
-wget https://private.delegatecall.com/loom/$PLATFORM/$BUILD_ID/tgoracle
+wget https://downloads.loomx.io/loom/$PLATFORM/$BUILD_ID/tgoracle
 chmod +x tgoracle
 
 if [[ -z "$ETHEREUM_NETWORK" ]]; then
@@ -156,8 +156,8 @@ fi
 
 # Run Binance Gateway e2e test
 cd $REPO_ROOT
-export ORACLE_BUILD_NUMBER=build-27
-wget https://private.delegatecall.com/binance_tgoracle/linux/$ORACLE_BUILD_NUMBER/binance_tgoracle
+export ORACLE_BUILD_NUMBER=build-32
+wget https://downloads.loomx.io/binance_tgoracle/linux/$ORACLE_BUILD_NUMBER/binance_tgoracle
 chmod +x binance_tgoracle
 
 LOOM_ORACLE=$REPO_ROOT/binance_tgoracle \

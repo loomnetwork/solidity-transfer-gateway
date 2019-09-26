@@ -32,7 +32,7 @@ fi
 set -exo pipefail
 
 # Loom build to use for tests when running on Jenkins, this build will be automatically downloaded.
-BUILD_NUMBER=build-1225
+BUILD_NUMBER=build-1284
 
 # These can be toggled via the options below, only useful when running the script locally.
 DOWNLOAD_LOOM=false
@@ -314,7 +314,7 @@ function download_dappchain {
     fi
     
     rm -f ./loom; true
-    wget https://private.delegatecall.com/loom/${BUILD_PLATFORM}/${BUILD_NUMBER}/loom-gateway
+    wget https://downloads.loomx.io/loom/${BUILD_PLATFORM}/${BUILD_NUMBER}/loom-gateway
     chmod +x loom-gateway
     mv loom-gateway loom
     export LOOM_BIN=`pwd`/loom
@@ -324,9 +324,9 @@ function download_dappchain {
         rm -f ./loomcoin_tgoracle; true
         rm -f ./validators-tool; true
 
-        wget https://private.delegatecall.com/loom/${BUILD_PLATFORM}/${BUILD_NUMBER}/validators-tool
-        wget https://private.delegatecall.com/loom/${BUILD_PLATFORM}/${BUILD_NUMBER}/loomcoin_tgoracle
-        wget https://private.delegatecall.com/loom/${BUILD_PLATFORM}/${BUILD_NUMBER}/tgoracle
+        wget https://downloads.loomx.io/loom/${BUILD_PLATFORM}/${BUILD_NUMBER}/validators-tool
+        wget https://downloads.loomx.io/loom/${BUILD_PLATFORM}/${BUILD_NUMBER}/loomcoin_tgoracle
+        wget https://downloads.loomx.io/loom/${BUILD_PLATFORM}/${BUILD_NUMBER}/tgoracle
 
         chmod +x tgoracle
         chmod +x loomcoin_tgoracle
