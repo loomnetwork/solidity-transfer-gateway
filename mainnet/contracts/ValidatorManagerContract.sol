@@ -59,8 +59,8 @@ contract ValidatorManagerContract {
         uint8 _threshold_num,
         uint8 _threshold_denom,
         address _loomAddress
-    ) 
-        public 
+    )
+        public
     {
         threshold_num = _threshold_num;
         threshold_denom = _threshold_denom;
@@ -83,8 +83,8 @@ contract ValidatorManagerContract {
         uint8[] calldata _v,
         bytes32[] calldata _r,
         bytes32[] calldata _s
-    ) 
-        external 
+    )
+        external
     {
         // Hash the address of the contract along with the nonce and the
         // updated loom token address.
@@ -117,8 +117,8 @@ contract ValidatorManagerContract {
         uint8[] calldata _v,
         bytes32[] calldata _r,
         bytes32[] calldata _s
-    ) 
-        external 
+    )
+        external
     {
         require(_num <= _denom && _num > 0, "Invalid threshold fraction");
 
@@ -153,8 +153,8 @@ contract ValidatorManagerContract {
         uint8[] calldata _v,
         bytes32[] calldata _r,
         bytes32[] calldata _s
-    ) 
-        external 
+    )
+        external
     {
         // Hash the address of the contract along with the nonce and the
         // updated validator set and powers.
@@ -184,8 +184,8 @@ contract ValidatorManagerContract {
         uint8 _v,
         bytes32 _r,
         bytes32 _s
-    ) 
-        public 
+    )
+        public
         view
     {
         // prevent replay attacks by adding the nonce in the sig

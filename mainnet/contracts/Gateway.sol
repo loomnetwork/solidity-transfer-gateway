@@ -69,8 +69,8 @@ contract Gateway is ERC20Gateway, IERC721Receiver, ERC721XReceiver {
       bytes32[] calldata _r,
       bytes32[] calldata _s
   )
-    gatewayEnabled
     external
+    gatewayEnabled
   {
     bytes32 message = createMessageWithdraw(
             "\x12Withdraw ERC721X:\n",
@@ -89,8 +89,8 @@ contract Gateway is ERC20Gateway, IERC721Receiver, ERC721XReceiver {
   }
 
 
-  /// @notice Function to withdraw ERC721 tokens from the Gateway. 
-  /// If the uid doesn't exists, the gateway will mint the uid to withdrawer.
+  /// @notice Function to withdraw ERC721 tokens from the Gateway.
+  /// If the given uid doesn't exist the Gateway will mint the uid directly to withdrawer.
   /// @param  uid The uid of the token being withdrawn
   /// @param  contractAddress The address of the token being withdrawn
   /// @param  _signersIndexes Array of indexes of the validator's signatures based on
@@ -106,8 +106,8 @@ contract Gateway is ERC20Gateway, IERC721Receiver, ERC721XReceiver {
       bytes32[] calldata _r,
       bytes32[] calldata _s
   )
-    gatewayEnabled
     external
+    gatewayEnabled
   {
     bytes32 message = createMessageWithdraw(
             "\x11Withdraw ERC721:\n",
@@ -128,7 +128,7 @@ contract Gateway is ERC20Gateway, IERC721Receiver, ERC721XReceiver {
 
   }
 
-  /// @notice Function to withdraw ETH tokens from the Gateway.
+  /// @notice Function to withdraw ETH from the Gateway.
   /// @param  amount The amount being withdrawn
   /// @param  _signersIndexes Array of indexes of the validator's signatures based on
   ///         the currently elected validators
@@ -142,8 +142,8 @@ contract Gateway is ERC20Gateway, IERC721Receiver, ERC721XReceiver {
       bytes32[] calldata _r,
       bytes32[] calldata _s
   )
-    gatewayEnabled
     external
+    gatewayEnabled
   {
     bytes32 message = createMessageWithdraw(
             "\x0eWithdraw ETH:\n",
@@ -173,8 +173,8 @@ contract Gateway is ERC20Gateway, IERC721Receiver, ERC721XReceiver {
       uint256 _amount,
       bytes memory _data
   )
-    gatewayEnabled
     public
+    gatewayEnabled
     returns (bytes4)
   {
     require(isTokenAllowed(msg.sender), "Not a valid token");
@@ -201,8 +201,8 @@ contract Gateway is ERC20Gateway, IERC721Receiver, ERC721XReceiver {
           uint256[] memory _amounts,
           bytes memory _data
   )
-    gatewayEnabled
     public
+    gatewayEnabled
     returns(bytes4)
   {
     require(isTokenAllowed(msg.sender), "Not a valid token");
@@ -224,9 +224,9 @@ contract Gateway is ERC20Gateway, IERC721Receiver, ERC721XReceiver {
   /// @param _uid Id of the token or tokenId
   /// @return ERC721_RECEIVED bytes function signature
   function onERC721Received(address _operator, address _from, uint256 _uid, bytes memory _data)
-    gatewayEnabled
     public
-    returns (bytes4) 
+    gatewayEnabled
+    returns (bytes4)
   {
     require(isTokenAllowed(msg.sender), "Not a valid token");
     emit ERC721Received(_operator, _from, _uid, msg.sender, _data);
@@ -234,7 +234,7 @@ contract Gateway is ERC20Gateway, IERC721Receiver, ERC721XReceiver {
   }
 
   /// @notice Fallback function just emits an event
-  function () gatewayEnabled external payable {
+  function () external gatewayEnabled payable {
     emit ETHReceived(msg.sender, msg.value);
   }
 

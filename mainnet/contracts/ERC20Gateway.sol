@@ -6,7 +6,7 @@ import "./ValidatorManagerContract.sol";
 import "./IERC20GatewayMintable.sol";
 
 contract ERC20Gateway {
-    using SafeERC20 for IERC20;
+  using SafeERC20 for IERC20;
 
   /// @notice Event to log the withdrawal of a token from the Gateway.
   /// @param  owner Address of the entity that made the withdrawal.
@@ -30,23 +30,22 @@ contract ERC20Gateway {
   /// The LOOM token address
   address public loomAddress;
 
-  //  A boolean to enable and disable deposit and withdraw
+  /// Enables or disables deposit (of most tokens) and withdraw (of all tokens & ETH).
+  /// ETH deposits can't be disabled completely since there are ways to transfer ETH to the Gateway
+  /// without running any code (e.g. calling selfdestruct(gateway_address) from a contract), though
+  /// anyone who tries transferring ETH in such unusual ways shouldn't expect to be able to recover
+  /// it from the Gateway anyway.
+  /// ERC20 deposits can't be disabled completely either because there's no way to prevent a direct
+  /// transfer of ERC20 tokens to the Gateway contract, so only deposits made via the depositERC20
+  /// method can be blocked.
   bool isGatewayEnabled;
 
   /// Booleans to permit depositing arbitrary tokens to the gateways
   bool allowAnyToken;
   mapping (address => bool) public allowedTokens;
 
-  // Contract deployer is the owner of this contract
+  /// Contract deployer is the owner of this contract
   address public owner;
-
-  function getOwner() public view returns(address) {
-    return owner;
-  }
-
-  function getAllowAnyToken() public view returns(bool) {
-    return allowAnyToken;
-  }
 
   /// The nonces per withdrawer to prevent replays
   mapping (address => uint256) public nonces;
@@ -76,8 +75,9 @@ contract ERC20Gateway {
 
   /// @notice Function to withdraw ERC20 tokens from the Gateway. Emits a
   /// ERC20Withdrawn event, or a LoomCoinWithdrawn event if the coin is LOOM
-  /// token, according to the ValidatorManagerContract. If withdrawal amount is more than current balance,
-  /// it will try to mint the token to user.
+  /// token, according to the ValidatorManagerContract. If the withdrawal amount exceeds the current
+  /// balance of the Gateway then the Gateway will attempt to mint the shortfall before transferring
+  /// the withdrawal amount to the withdrawer.
   /// @param  amount The amount being withdrawn
   /// @param  contractAddress The address of the token being withdrawn
   /// @param  _signersIndexes Array of indexes of the validator's signatures based on
@@ -93,8 +93,8 @@ contract ERC20Gateway {
       bytes32[] calldata _r,
       bytes32[] calldata _s
   )
-    gatewayEnabled
     external
+    gatewayEnabled
   {
     bytes32 message = createMessageWithdraw(
             "\x10Withdraw ERC20:\n",
@@ -112,13 +112,13 @@ contract ERC20Gateway {
       IERC20GatewayMintable(contractAddress).mintTo(address(this), amount - bal);
     }
     IERC20(contractAddress).safeTransfer(msg.sender, amount);
-    
+
     emit TokenWithdrawn(msg.sender, contractAddress == loomAddress ? TokenKind.LoomCoin : TokenKind.ERC20, contractAddress, amount);
   }
 
   // Approve and Deposit function for 2-step deposits
   // Requires first to have called `approve` on the specified ERC20 contract
-  function depositERC20(uint256 amount, address contractAddress) gatewayEnabled external {
+  function depositERC20(uint256 amount, address contractAddress) external gatewayEnabled {
     IERC20(contractAddress).safeTransferFrom(msg.sender, address(this), amount);
 
     emit ERC20Received(msg.sender, amount, contractAddress);
@@ -184,6 +184,11 @@ contract ERC20Gateway {
     allowAnyToken = allow;
   }
 
+  /// @return true if any token can be deposited, false otherwise.
+  function getAllowAnyToken() public view returns(bool) {
+    return allowAnyToken;
+  }
+
   /// @notice The owner can toggle allowing a token to be deposited on
   ///         the sidechain
   /// @param  tokenAddress The token address
@@ -193,4 +198,8 @@ contract ERC20Gateway {
     allowedTokens[tokenAddress] = allow;
   }
 
+  /// @return The current owner of the Gateway.
+  function getOwner() public view returns(address) {
+    return owner;
+  }
 }
