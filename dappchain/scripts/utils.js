@@ -35,7 +35,7 @@ module.exports.loadDappAccount = (provider, keyfile) => {
     providerConfig.writeUrl = 'http://127.0.0.1:46658/websocket'
     providerConfig.readUrl = 'http://127.0.0.1:46658/queryws'
   } else {
-    throw new Error(`not support provider${provider}`)
+    throw new Error(`not support provider ${provider}`)
   }
 
   const client = new Client(
