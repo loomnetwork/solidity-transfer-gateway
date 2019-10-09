@@ -32,7 +32,13 @@ fi
 set -exo pipefail
 
 # Loom build to use for tests when running on Jenkins, this build will be automatically downloaded.
-BUILD_NUMBER=build-1284
+BUILD_ID=${BUILD_ID:-build-1309}
+if [[ "`uname`" == 'Darwin' ]]; then
+    BUILD_PLATFORM=osx
+else
+    BUILD_PLATFORM=linux
+fi
+DOWNLOAD_LOOM_URL=${DOWNLOAD_LOOM_URL:-https://downloads.loomx.io/loom/${BUILD_PLATFORM}/${BUILD_ID}}
 
 # These can be toggled via the options below, only useful when running the script locally.
 DOWNLOAD_LOOM=false
@@ -159,10 +165,24 @@ function start_chains {
             $LOOM_BIN gateway update-trusted-validators $VALIDATOR_PUBKEYS gateway --key $E2E_CONFIG_DIR/gateway_owner_priv.key -u ${NODE_RPC_ADDR}
             $LOOM_BIN gateway update-trusted-validators $VALIDATOR_PUBKEYS loomcoin-gateway  --key $E2E_CONFIG_DIR/gateway_owner_priv.key -u ${NODE_RPC_ADDR}
 
+            # set withdrawal limit only for ETH/LOOM gateway
+            if [[ "$GATEWAY_TYPE" == "gateway" ]]; then
+                # Withdrawal limit must be set because the feature flags is already enabled in genesis.json file
+                # otherwise, the user won't be able to withdraw funds.
+                $LOOM_BIN gateway set-withdrawal-limit gateway --total-limit 1000000 --account-limit 500000 --key $E2E_CONFIG_DIR/gateway_owner_priv.key -u ${NODE_RPC_ADDR}
+                $LOOM_BIN gateway set-withdrawal-limit loomcoin-gateway --total-limit 1000000 --account-limit 500000 --key $E2E_CONFIG_DIR/gateway_owner_priv.key -u ${NODE_RPC_ADDR}
+            fi
+
         else
             $LOOM_BIN run > loom.log 2>loom_bin.err &
             loom_pid=$!
             sleep 10
+
+            # set withdrawal limit only for ETH/LOOM gateway
+            if [[ "$GATEWAY_TYPE" == "gateway" ]]; then
+                $LOOM_BIN gateway set-withdrawal-limit gateway --total-limit 1000000 --account-limit 500000 --key $E2E_CONFIG_DIR/gateway_owner_priv.key
+                $LOOM_BIN gateway set-withdrawal-limit loomcoin-gateway --total-limit 1000000 --account-limit 500000 --key $E2E_CONFIG_DIR/gateway_owner_priv.key
+            fi
         fi
         echo "Launched Loom - Log(loom.log) Pid(${loom_pid})"
     fi
@@ -307,14 +327,9 @@ function cleanup {
 
 function download_dappchain {
     cd $REPO_ROOT
-    if [[ "`uname`" == 'Darwin' ]]; then
-        BUILD_PLATFORM=osx
-    else
-        BUILD_PLATFORM=linux
-    fi
-    
+
     rm -f ./loom; true
-    wget https://downloads.loomx.io/loom/${BUILD_PLATFORM}/${BUILD_NUMBER}/loom-gateway
+    wget ${DOWNLOAD_LOOM_URL}/loom-gateway
     chmod +x loom-gateway
     mv loom-gateway loom
     export LOOM_BIN=`pwd`/loom
@@ -324,9 +339,9 @@ function download_dappchain {
         rm -f ./loomcoin_tgoracle; true
         rm -f ./validators-tool; true
 
-        wget https://downloads.loomx.io/loom/${BUILD_PLATFORM}/${BUILD_NUMBER}/validators-tool
-        wget https://downloads.loomx.io/loom/${BUILD_PLATFORM}/${BUILD_NUMBER}/loomcoin_tgoracle
-        wget https://downloads.loomx.io/loom/${BUILD_PLATFORM}/${BUILD_NUMBER}/tgoracle
+        wget ${DOWNLOAD_LOOM_URL}/validators-tool
+        wget ${DOWNLOAD_LOOM_URL}/loomcoin_tgoracle
+        wget ${DOWNLOAD_LOOM_URL}/tgoracle
 
         chmod +x tgoracle
         chmod +x loomcoin_tgoracle
@@ -455,6 +470,7 @@ function set_transfer_fee {
     fi
 }
 
+
 # BUILD_TAG is usually only set by Jenkins, so when running locally just hardcode some value
 if [[ -z "$BUILD_TAG" ]]; then
     BUILD_TAG=123
@@ -506,7 +522,7 @@ if [[ "$SKIP_TESTS" == false ]]; then
             DAPPCHAIN_NETWORK=$DAPPCHAIN_NETWORK \
             ETHEREUM_NETWORK=$ETHEREUM_NETWORK \
             ORACLE_WAIT_TIME=$ORACLE_WAIT_TIME \
-            go test -v gateway -tags "evm" -timeout 15m -run TestTransferGatewayTestSuite
+            go test -v gateway -tags "evm" -timeout 30m -run TestTransferGatewayTestSuite
         else
             # each test takes about 6 mins to complete on Rinkeby, so run them individually to get
             # quicker feedback when something fails
@@ -559,6 +575,20 @@ if [[ "$SKIP_TESTS" == false ]]; then
                 ETHEREUM_NETWORK=$ETHEREUM_NETWORK \
                 ORACLE_WAIT_TIME=$ORACLE_WAIT_TIME \
                 go test gateway -tags "evm" -run TestTransferGatewayTestSuite -testify.m ^TestLoomDepositAndWithdraw$
+            fi
+            if [[ "$TEST_TO_RUN" == "ALL" ]] || [[ "$TEST_TO_RUN" == "ETHWithdrawalLimit" ]]; then
+                LOOM_DIR=$LOOM_DIR \
+                DAPPCHAIN_NETWORK=$DAPPCHAIN_NETWORK \
+                ETHEREUM_NETWORK=$ETHEREUM_NETWORK \
+                ORACLE_WAIT_TIME=$ORACLE_WAIT_TIME \
+                go test gateway -tags "evm" -run TestTransferGatewayTestSuite -testify.m ^TestETHWithdrawalLimit$
+            fi
+            if [[ "$TEST_TO_RUN" == "ALL" ]] || [[ "$TEST_TO_RUN" == "LoomCoinWithdrawalLimit" ]]; then
+                LOOM_DIR=$LOOM_DIR \
+                DAPPCHAIN_NETWORK=$DAPPCHAIN_NETWORK \
+                ETHEREUM_NETWORK=$ETHEREUM_NETWORK \
+                ORACLE_WAIT_TIME=$ORACLE_WAIT_TIME \
+                go test gateway -tags "evm" -run TestTransferGatewayTestSuite -testify.m ^TestLoomCoinWithdrawalLimit$
             fi
         fi
     elif [[ "$GATEWAY_TYPE" == "tron-gateway" ]]; then

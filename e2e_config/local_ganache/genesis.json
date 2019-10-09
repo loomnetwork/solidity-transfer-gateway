@@ -74,7 +74,48 @@
                     }
                 ]
             }
-        }
-
+        },
+        {
+            "vm": "plugin",
+            "format": "plugin",
+            "name": "chainconfig",
+            "location": "chainconfig:1.0.0",
+            "init": {
+                "owner": {
+                    "chainId": "default",
+                    "local": "kQid61xWyD0s1aVxZhB2Yf3zdZ4="
+                },
+                "params": {
+                    "voteThreshold": "100",
+                    "numBlockConfirmations": "1"
+                },
+                "features": [
+                    {
+                        "name":"chaincfg:v1.1",
+                        "status":"WAITING"
+                    },
+                    {
+                        "name":"chaincfg:v1.2",
+                        "status":"WAITING"
+                    },
+                    {
+                        "name":"chaincfg:v1.3",
+                        "status":"WAITING"
+                    },
+                    {
+                        "name":"chaincfg:v1.4",
+                        "status":"WAITING"
+                    },
+                    {
+                        "name":"evm:constantinople",
+                        "status":"WAITING"
+                    },
+                    {
+                        "name":"tg:withdrawal-limit",
+                        "status":"WAITING"
+                    }
+                ]
+            }
+        }	
     ]
 }

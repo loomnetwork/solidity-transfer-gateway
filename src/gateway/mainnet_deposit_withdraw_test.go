@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	// Contract bindings
+	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
 	am "github.com/loomnetwork/go-loom/client/address_mapper"
 	"github.com/loomnetwork/go-loom/client/erc20"
 	"github.com/loomnetwork/go-loom/client/erc721"
@@ -1093,7 +1094,6 @@ func (s *TransferGatewayTestSuite) TestETHDepositAndWithdraw() {
 	require.NoError(err)
 
 	// Verify Alice's withdrawal receipt has been signed by enough validators
-	fmt.Println("Verify Alice's withdrawal receipt has been signed by enough validators")
 	require.True(len(wr.OracleSignature)/65 >= 2*len(validators)/3, "Must be signed by 2/3rds validators")
 
 	aliceMainnetEthBal, err := s.ethClient.BalanceAt(context.TODO(), alice.MainnetAddr, nil)
@@ -1316,15 +1316,378 @@ func (s *TransferGatewayTestSuite) TestETHDepositAndWithdrawWithEVM() {
 	require.Nil(wr, "DAppChain Gateway should've cleared out Alice's pending withdrawal")
 }
 
-func sciNot(m int64) *big.Int {
-	n := int64(18)
-	ret := big.NewInt(10)
-	ret.Exp(ret, big.NewInt(n), nil)
-	ret.Mul(ret, big.NewInt(m))
-	return ret
+func (s *TransferGatewayTestSuite) TestETHWithdrawalLimit() {
+	require := s.Require()
+	alice := s.alice
+
+	// current max total withdrawal amount is 1,000,000
+	// current max per account withdrawal amount is 500,000
+	amount := sciNot(2000000)
+
+	aliceMainnetEthStartBal, err := s.ethClient.BalanceAt(context.TODO(), alice.MainnetAddr, nil)
+	require.NoError(err)
+	gatewayMainnetEthStartBal, err := s.mainnetGateway.ETHBalance()
+	require.NoError(err)
+	aliceDappchainEthStartBal, err := s.loomEth.BalanceOf(alice)
+	require.NoError(err)
+
+	// Alice deposits some ETH into the Mainnet Gateway contract
+	txFee, err := s.mainnetGateway.DepositETH(alice, amount)
+	require.NoError(err)
+	curBalance, err := s.ethClient.BalanceAt(context.TODO(), alice.MainnetAddr, nil)
+	require.NoError(err)
+	require.Equal(
+		new(big.Int).Add(amount, txFee).String(),
+		new(big.Int).Sub(aliceMainnetEthStartBal, curBalance).String(),
+		"Alice should no longer have the ETH she deposited to the Mainnet Gateway")
+	curBalance, err = s.mainnetGateway.ETHBalance()
+	require.NoError(err)
+	require.Equal(
+		amount.String(),
+		new(big.Int).Sub(curBalance, gatewayMainnetEthStartBal).String(),
+		"Alice's ETH should be deposited in the Mainnet Gateway")
+
+	// Let the Oracle notify the DAppChain Gateway about Alice's deposit
+	s.mineBlocksTillConfirmation()
+	time.Sleep(s.oracleWaitTime)
+
+	// Alice should now have her ETH in the DAppChain ETH contract
+	curBalance, err = s.loomEth.BalanceOf(alice)
+	require.NoError(err)
+	require.Equal(
+		amount.String(),
+		new(big.Int).Sub(curBalance, aliceDappchainEthStartBal).String(),
+		"Alice's ETH should be in the DAppChain ETH contract")
+
+	// Alice must grant approval to the DAppChain Gateway to take ownership of the ETH she wishes to
+	// withdraw to Mainnet
+	require.NoError(s.loomEth.Approve(alice, s.dappchainGateway.Address, amount))
+
+	amount2 := sciNot(200000)
+	// Now Alice can request a withdrawal from the DAppChain Gateway...
+	for i := 0; i < 5; i++ {
+		err = s.dappchainGateway.WithdrawETH(alice, amount2, s.mainnetGateway.Address)
+		if err != nil {
+			if strings.Contains(err.Error(), "TG003") {
+				time.Sleep(5 * time.Second)
+			} else {
+				require.NoError(err)
+			}
+		} else {
+			break
+		}
+	}
+	require.NoError(err)
+
+	// Let the Oracle fetch pending withdrawals & sign them
+	var wr *tgtypes.TransferGatewayWithdrawalReceipt
+	for {
+		wr, err = s.dappchainGateway.WithdrawalReceipt(alice)
+		if wr.OracleSignature != nil {
+			break
+		}
+
+		time.Sleep(5 * time.Second)
+	}
+	require.NoError(err)
+	require.NotNil(wr)
+
+	validators, err := s.validatorsManager.GetValidators()
+	require.NoError(err)
+
+	// Verify Alice's withdrawal receipt has been signed by enough validators
+	require.True(len(wr.OracleSignature)/65 >= 2*len(validators)/3, "Must be signed by 2/3rds validators")
+
+	aliceMainnetEthBal, err := s.ethClient.BalanceAt(context.TODO(), alice.MainnetAddr, nil)
+	require.NoError(err)
+
+	// Alice can now withdraw the ETH from the Mainnet Gateway by presenting the signature from
+	// the withdrawal receipt
+	txFee, err = s.mainnetGateway.WithdrawETH(alice, amount2, wr.OracleSignature, validators)
+	require.NoError(err)
+	// Alice should now have her ETH back on Mainnet
+	curBalance, err = s.mainnetGateway.ETHBalance()
+	require.NoError(err)
+	require.Equal(
+		new(big.Int).Sub(amount, amount2).String(), curBalance.String(),
+		"Alice's ETH should be withdrawn to Mainnet Gateway and still have some amount on Dappchain Gateway")
+	curBalance, err = s.ethClient.BalanceAt(context.TODO(), alice.MainnetAddr, nil)
+	require.NoError(err)
+	require.Equal(
+		new(big.Int).Sub(curBalance, aliceMainnetEthBal).String(),
+		new(big.Int).Sub(amount2, txFee).String(),
+		"Alice should have all her ETH in her Mainnet account (minus tx fees)")
+
+	// Let the Oracle notify the DAppChain Gateway that Alice has completed the withdrawal
+	s.mineBlocksTillConfirmation()
+	time.Sleep(s.oracleWaitTime)
+
+	// Check the DAppChain Gateway has been updated...
+	wr, err = s.dappchainGateway.WithdrawalReceipt(alice)
+	require.NoError(err)
+	require.Nil(wr, "DAppChain Gateway should've cleared out Alice's pending withdrawal")
+
+	// case1: Withdrawal amount exceeds max daily total limit
+	amount3 := sciNot(1300000)
+	require.NoError(s.loomEth.Approve(alice, s.dappchainGateway.Address, amount3))
+	err = s.dappchainGateway.WithdrawETH(alice, amount3, s.mainnetGateway.Address)
+	require.Error(err, "withdraw ETH should fail")
+	require.True(strings.Contains(err.Error(), "TG024"), "Alice should not be able to withdraw ETH because the withdrawal amount exceeds that of daily total limit")
+
+	// case2: Withdrawal amount exceeds max daily per account limit
+	amount3 = sciNot(400000) // 400K ETH
+	require.NoError(s.loomEth.Approve(alice, s.dappchainGateway.Address, amount3))
+	err = s.dappchainGateway.WithdrawETH(alice, amount3, s.mainnetGateway.Address)
+	require.Error(err, "withdraw ETH should fail")
+	require.True(strings.Contains(err.Error(), "TG025"), "Alice should not be able to withdraw ETH because the withdrawal amount exceeds that of daily per account limit")
+
+	// case3: Withdrawal should just work if the limit is not reached
+	amount3 = sciNot(200000) // total sum should be 200,000 + 200,000 which is not reached the limit 500,000
+	require.NoError(s.loomEth.Approve(alice, s.dappchainGateway.Address, amount3))
+
+	// Now Alice can request a withdrawal from the DAppChain Gateway...
+	for i := 0; i < 5; i++ {
+		err = s.dappchainGateway.WithdrawETH(alice, amount3, s.mainnetGateway.Address)
+		if err != nil {
+			if strings.Contains(err.Error(), "TG003") {
+				time.Sleep(5 * time.Second)
+			} else {
+				require.NoError(err)
+			}
+		} else {
+			break
+		}
+	}
+	require.NoError(err)
+
+	// Let the Oracle fetch pending withdrawals & sign them
+	for {
+		wr, err = s.dappchainGateway.WithdrawalReceipt(alice)
+		if wr.OracleSignature != nil {
+			break
+		}
+
+		time.Sleep(5 * time.Second)
+	}
+	require.NoError(err)
+	require.NotNil(wr)
+
+	// Verify Alice's withdrawal receipt has been signed by enough validators
+	require.True(len(wr.OracleSignature)/65 >= 2*len(validators)/3, "Must be signed by 2/3rds validators")
+
+	aliceMainnetEthBal, err = s.ethClient.BalanceAt(context.TODO(), alice.MainnetAddr, nil)
+	require.NoError(err)
+
+	// Alice can now withdraw the ETH from the Mainnet Gateway by presenting the signature from
+	// the withdrawal receipt
+	txFee, err = s.mainnetGateway.WithdrawETH(alice, amount3, wr.OracleSignature, validators)
+	require.NoError(err)
+	// Alice should now have her ETH back on Mainnet
+	curBalance, err = s.mainnetGateway.ETHBalance()
+	require.NoError(err)
+	require.Equal(
+		new(big.Int).Sub(amount, new(big.Int).Add(amount3, amount2)).String(),
+		curBalance.String(),
+		"Alice's ETH should be withdrawn to Mainnet Gateway and still have some amount on Dappchain Gateway")
+	curBalance, err = s.ethClient.BalanceAt(context.TODO(), alice.MainnetAddr, nil)
+	require.NoError(err)
+	require.Equal(
+		new(big.Int).Sub(curBalance, aliceMainnetEthBal).String(),
+		new(big.Int).Sub(amount3, txFee).String(),
+		"Alice should have all her ETH in her Mainnet account (minus tx fees)")
+
+	// Let the Oracle notify the DAppChain Gateway that Alice has completed the withdrawal
+	s.mineBlocksTillConfirmation()
+	time.Sleep(s.oracleWaitTime)
 }
 
-func amountAsString(m *big.Int) string {
-	n := int64(18)
-	return new(big.Rat).SetFrac(m, new(big.Int).Exp(big.NewInt(10), big.NewInt(n), nil)).FloatString(4)
+func (s *TransferGatewayTestSuite) TestLoomCoinWithdrawalLimit() {
+	require := s.Require()
+	alice := s.alice
+
+	loomCfg, err := ParseConfig([]string{os.Getenv("LOOM_DIR")})
+	require.NoError(err)
+	s.dappchainLoomGateway, err = gw.ConnectToDAppChainLoomGateway(s.loomClient, loomCfg.TransferGateway.DAppChainEventsURI)
+	require.NoError(err)
+
+	// current max total withdrawal amount is 1,000,000
+	// current max per account withdrawal amount is 500,000
+	amount := sciNot(2000000)
+
+	require.NoError(s.mainnetLoomCoin.Transfer(alice, s.coinCreator, amount))
+	aliceMainnetEthStartBal, err := s.mainnetLoomCoin.BalanceOf(alice)
+	require.NoError(err)
+	gatewayMainnetLoomCoinStartBal, err := s.mainnetLoomGateway.ERC20Balance(s.mainnetLoomCoin.Address)
+	require.NoError(err)
+	aliceDappchainLoomCoinStartBal, err := s.loomCoin.BalanceOf(alice)
+	require.NoError(err)
+
+	// Alice deposits some LOOM into the Mainnet Gateway contract
+	require.NoError(s.mainnetLoomCoin.Approve(alice, s.mainnetLoomGateway.Address, amount))
+	require.NoError(s.mainnetLoomGateway.DepositERC20(alice, amount, s.mainnetLoomCoin.Address))
+
+	curBalance, err := s.mainnetLoomCoin.BalanceOf(alice)
+	require.NoError(err)
+	require.Equal(
+		amount.String(),
+		new(big.Int).Sub(aliceMainnetEthStartBal, curBalance).String(),
+		"Alice should no longer have the LOOM she deposited to the Mainnet Gateway")
+	curBalance, err = s.mainnetLoomGateway.ERC20Balance(s.mainnetLoomCoin.Address)
+	require.NoError(err)
+	require.Equal(
+		amount.String(),
+		new(big.Int).Sub(curBalance, gatewayMainnetLoomCoinStartBal).String(),
+		"Alice's LOOM should be deposited in the Mainnet Gateway")
+
+	// Let the Oracle notify the DAppChain Gateway about Alice's deposit
+	s.mineBlocksTillConfirmation()
+	time.Sleep(s.oracleWaitTime)
+
+	// Alice should now have her LOOM in the DAppChain LOOMCOIN contract
+	curBalance, err = s.loomCoin.BalanceOf(alice)
+	require.NoError(err)
+	require.Equal(
+		amount.String(),
+		new(big.Int).Sub(curBalance, aliceDappchainLoomCoinStartBal).String(),
+		"Alice's LOOM should be in the DAppChain LOOMCOIN contract")
+
+	// Alice must grant approval to the DAppChain Gateway to take ownership of the LOOM she wishes to
+	// withdraw to Mainnet
+	require.NoError(s.loomCoin.Approve(alice, s.dappchainLoomGateway.Address, amount))
+
+	amount2 := sciNot(200000)
+	// Now Alice can request a withdrawal from the DAppChain Gateway...
+	for i := 0; i < 5; i++ {
+		err = s.dappchainLoomGateway.WithdrawLoom(alice, amount2, s.mainnetLoomCoin.Address)
+		if err != nil {
+			if strings.Contains(err.Error(), "TG003") {
+				time.Sleep(5 * time.Second)
+			} else {
+				require.NoError(err)
+			}
+		} else {
+			break
+		}
+	}
+	require.NoError(err)
+
+	// Let the Oracle fetch pending withdrawals & sign them
+	var wr *tgtypes.TransferGatewayWithdrawalReceipt
+	for {
+		wr, err = s.dappchainLoomGateway.WithdrawalReceipt(alice)
+		if wr.OracleSignature != nil {
+			break
+		}
+
+		time.Sleep(5 * time.Second)
+	}
+	require.NoError(err)
+	require.NotNil(wr)
+
+	validators, err := s.validatorsManager.GetValidators()
+	require.NoError(err)
+
+	// Verify Alice's withdrawal receipt has been signed by enough validators
+	require.True(len(wr.OracleSignature)/65 >= 2*len(validators)/3, "Must be signed by 2/3rds validators")
+
+	aliceMainnetLoomCoinBal, err := s.mainnetLoomCoin.BalanceOf(alice)
+	require.NoError(err)
+
+	// Alice can now withdraw the LOOM from the Mainnet Gateway by presenting the signature from
+	// the withdrawal receipt
+	require.NoError(s.mainnetLoomGateway.WithdrawERC20(alice, amount2, s.mainnetLoomCoin.Address, wr.OracleSignature, validators))
+
+	// Alice should now have her LOOM back on Mainnet
+	curBalance, err = s.mainnetLoomGateway.ERC20Balance(s.mainnetLoomCoin.Address)
+	require.NoError(err)
+	require.Equal(
+		new(big.Int).Sub(amount, amount2).String(), curBalance.String(),
+		"Alice's LOOM should be withdrawn to Mainnet Gateway and still have some amount on Dappchain Gateway")
+	curBalance, err = s.mainnetLoomCoin.BalanceOf(alice)
+	require.NoError(err)
+	require.Equal(
+		new(big.Int).Sub(curBalance, aliceMainnetLoomCoinBal).String(),
+		amount2.String(),
+		"Alice should have all her LOOM in her Mainnet account (minus tx fees)")
+
+	// Let the Oracle notify the DAppChain Gateway that Alice has completed the withdrawal
+	s.mineBlocksTillConfirmation()
+	time.Sleep(s.oracleWaitTime)
+
+	// Check the DAppChain Gateway has been updated...
+	wr, err = s.dappchainLoomGateway.WithdrawalReceipt(alice)
+	require.NoError(err)
+	require.Nil(wr, "DAppChain Gateway should've cleared out Alice's pending withdrawal")
+
+	// case1: Withdrawal amount exceeds max daily total limit
+	amount3 := sciNot(1300000)
+	require.NoError(s.loomCoin.Approve(alice, s.dappchainLoomGateway.Address, amount3))
+	err = s.dappchainLoomGateway.WithdrawLoom(alice, amount3, s.mainnetLoomCoin.Address)
+	require.Error(err, "withdraw LOOM should fail")
+	require.True(strings.Contains(err.Error(), "TG024"), "Alice should not be able to withdraw LOOM because the withdrawal amount exceeds that of daily total limit")
+
+	// case2: Withdrawal amount exceeds max daily per account limit
+	amount3 = sciNot(400000) // 400K LOOM
+	require.NoError(s.loomCoin.Approve(alice, s.dappchainLoomGateway.Address, amount3))
+	err = s.dappchainLoomGateway.WithdrawLoom(alice, amount3, s.mainnetLoomCoin.Address)
+	require.Error(err, "withdraw LOOM should fail")
+	require.True(strings.Contains(err.Error(), "TG025"), "Alice should not be able to withdraw LOOM because the withdrawal amount exceeds that of daily per account limit")
+
+	// case3: Withdrawal should just work if the limit is not reached
+	amount3 = sciNot(200000) // total sum should be 200,000 + 200,000 which is not reached the limit 500,000
+	require.NoError(s.loomCoin.Approve(alice, s.dappchainLoomGateway.Address, amount3))
+
+	// Now Alice can request a withdrawal from the DAppChain Gateway...
+	for i := 0; i < 5; i++ {
+		err = s.dappchainLoomGateway.WithdrawLoom(alice, amount3, s.mainnetLoomCoin.Address)
+		if err != nil {
+			if strings.Contains(err.Error(), "TG003") {
+				time.Sleep(5 * time.Second)
+			} else {
+				require.NoError(err)
+			}
+		} else {
+			break
+		}
+	}
+	require.NoError(err)
+
+	// Let the Oracle fetch pending withdrawals & sign them
+	for {
+		wr, err = s.dappchainLoomGateway.WithdrawalReceipt(alice)
+		if wr.OracleSignature != nil {
+			break
+		}
+
+		time.Sleep(5 * time.Second)
+	}
+	require.NoError(err)
+	require.NotNil(wr)
+
+	// Verify Alice's withdrawal receipt has been signed by enough validators
+	require.True(len(wr.OracleSignature)/65 >= 2*len(validators)/3, "Must be signed by 2/3rds validators")
+
+	aliceMainnetLoomCoinBal, err = s.mainnetLoomCoin.BalanceOf(alice)
+	require.NoError(err)
+
+	// Alice can now withdraw the LOOM from the Mainnet Gateway by presenting the signature from
+	// the withdrawal receipt
+	require.NoError(s.mainnetLoomGateway.WithdrawERC20(alice, amount3, s.mainnetLoomCoin.Address, wr.OracleSignature, validators))
+	// Alice should now have her LOOM back on Mainnet
+	curBalance, err = s.mainnetLoomGateway.ERC20Balance(s.mainnetLoomCoin.Address)
+	require.NoError(err)
+	require.Equal(
+		new(big.Int).Sub(amount, new(big.Int).Add(amount3, amount2)).String(),
+		curBalance.String(),
+		"Alice's LOOM should be withdrawn to Mainnet Gateway and still have some amount on Dappchain Gateway")
+	curBalance, err = s.mainnetLoomCoin.BalanceOf(alice)
+	require.NoError(err)
+	require.Equal(
+		new(big.Int).Sub(curBalance, aliceMainnetLoomCoinBal).String(),
+		amount3.String(),
+		"Alice should have all her LOOM in her Mainnet account")
+
+	// Let the Oracle notify the DAppChain Gateway that Alice has completed the withdrawal
+	s.mineBlocksTillConfirmation()
+	time.Sleep(s.oracleWaitTime)
 }

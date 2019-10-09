@@ -5,6 +5,7 @@ package gateway
 import (
 	"io/ioutil"
 	"log"
+	"math/big"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -210,4 +211,17 @@ func NewERC20TokenContract(
 		return nil, err
 	}
 	return &erc20.DAppChainERC20Contract{MirroredTokenContract: mirroredTokenContract}, nil
+}
+
+func sciNot(m int64) *big.Int {
+	n := int64(18)
+	ret := big.NewInt(10)
+	ret.Exp(ret, big.NewInt(n), nil)
+	ret.Mul(ret, big.NewInt(m))
+	return ret
+}
+
+func amountAsString(m *big.Int) string {
+	n := int64(18)
+	return new(big.Rat).SetFrac(m, new(big.Int).Exp(big.NewInt(10), big.NewInt(n), nil)).FloatString(4)
 }

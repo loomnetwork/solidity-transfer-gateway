@@ -20,11 +20,12 @@ pkill -f loom || true
 pkill -f loom-gateway || true
 pkill -f binance_tgoracle || true
 
-#load specific number of LOOM_BIN
 rm -rf loom loom-gateway binance_tgoracle tgoracle loomcoin_tgoracle
-export BUILD_ID=build-1284
 
-
+# Loom build to use for tests
+export BUILD_ID=build-1311
+# Binance Oracle build to use for tests
+BINANCE_ORACLE_BUILD_ID=build-33
 
 # Check available platforms
 PLATFORM='unknown'
@@ -38,16 +39,18 @@ else
   exit -1
 fi
 
+# If loom custom build is used, change this URL to https://private.delegatecall.com/loom/${PLATFORM}/${BUILD_ID}
+export DOWNLOAD_LOOM_URL=https://downloads.loomx.io/loom/${PLATFORM}/${BUILD_ID}
+DOWNLOAD_BINANCE_URL=https://downloads.loomx.io/binance_tgoracle/${PLATFORM}/${BINANCE_ORACLE_BUILD_ID}
 
-
-wget https://downloads.loomx.io/loom/$PLATFORM/$BUILD_ID/loom-gateway
+wget ${DOWNLOAD_LOOM_URL}/loom-gateway
 chmod +x loom-gateway
 mv loom-gateway loom
 export LOOM_BIN=`pwd`/loom
 
-wget https://downloads.loomx.io/loom/$PLATFORM/$BUILD_ID/loomcoin_tgoracle
+wget ${DOWNLOAD_LOOM_URL}/loomcoin_tgoracle
 chmod +x loomcoin_tgoracle
-wget https://downloads.loomx.io/loom/$PLATFORM/$BUILD_ID/tgoracle
+wget ${DOWNLOAD_LOOM_URL}/tgoracle
 chmod +x tgoracle
 
 if [[ -z "$ETHEREUM_NETWORK" ]]; then
@@ -156,8 +159,7 @@ fi
 
 # Run Binance Gateway e2e test
 cd $REPO_ROOT
-export ORACLE_BUILD_NUMBER=build-32
-wget https://downloads.loomx.io/binance_tgoracle/linux/$ORACLE_BUILD_NUMBER/binance_tgoracle
+wget ${DOWNLOAD_BINANCE_URL}/binance_tgoracle
 chmod +x binance_tgoracle
 
 LOOM_ORACLE=$REPO_ROOT/binance_tgoracle \
