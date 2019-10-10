@@ -127,7 +127,8 @@ function start_chains {
             SECRET=$REPO_ROOT/e2e_config/local_ganache/centralized_vmc.json
         fi
 
-        SECRET_FILE=$SECRET yarn run migrate:dev
+        export SECRET_FILE=$SECRET 
+        yarn run migrate:dev
         sleep 1
         ganache_pid=`cat ganache.pid`
         echo 'Launched ganache' $ganache_pid
@@ -382,13 +383,11 @@ function deploy_test_contracts {
     if [[ "$GATEWAY_TYPE" == "gateway" ]]; then
         if [[ "$DEPLOY_TO_ETHEREUM" == true ]] || [[ "$DEPLOY_TO_DAPPCHAIN" == true ]]; then
             cd $LOOM_DIR
-            DAPPCHAIN_NETWORK=$DAPPCHAIN_NETWORK \
-            ETHEREUM_NETWORK=$ETHEREUM_NETWORK \
-            $REPO_ROOT/deployer deploy --loom-dir "$LOOM_DIR" \
-                                --ethereum-contracts "$ETHEREUM_CONTRACTS" \
-                                --dappchain-contracts "$DAPPCHAIN_CONTRACTS" \
-                                --deployment-file "$E2E_CONFIG_DIR/contracts.yml" \
-                                --contract-dir "$CONTRACT_DIR"
+            cd $REPO_ROOT/mainnet yarn run migrate:dev
+            cd $REPO_ROOT/dappchain
+            export CFG=$LOOM_DIR/loom.yml
+            GATEWAY_ADDR=$(node scripts/get_gateway_address.js)
+            cd $REPO_ROOT/dappchain && GATEWAY_ADDR=$GATEWAY_ADDR yarn run deploy:dev
         fi
     elif [[ "$GATEWAY_TYPE" == "tron-gateway" ]]; then
         if [[ "$DEPLOY_TO_DAPPCHAIN" == true ]]; then
@@ -407,20 +406,16 @@ function deploy_test_contracts {
             DAPPCHAIN_CONTRACTS="BNBToken,SampleBEP2Token"
 
             cd $LOOM_DIR
-            GATEWAY_TYPE=$GATEWAY_TYPE \
-            BINANCE_NETWORK=$BINANCE_NETWORK \
-            DAPPCHAIN_NETWORK=$DAPPCHAIN_NETWORK \
-            $REPO_ROOT/deployer deploy-binance --loom-dir "$LOOM_DIR" \
-                                --contract-dir "$CONTRACT_DIR" \
-                                --dappchain-contracts "$DAPPCHAIN_CONTRACTS" \
-                                --deployment-file "$E2E_CONFIG_DIR/contracts.yml"
+            cd $REPO_ROOT/dappchain
+            export CFG=$LOOM_DIR/loom.yml
+            GATEWAY_ADDR=$(node scripts/get_gateway_address.js binance)
+            cd $REPO_ROOT/dappchain && GATEWAY_ADDR=$GATEWAY_ADDR yarn run deploy:binance
         fi
     fi
 }
 
 function map_test_contracts {
-    DAPPCHAIN_CONTRACTS="SampleERC721Token,SampleERC20Token,SampleERC721XToken,TRXToken,SampleERC20Token2,SampleERC721Token2"
-    
+    DAPPCHAIN_CONTRACTS="SampleERC721Token,SampleERC20Token,SampleERC721XToken,SampleERC20Token2,SampleERC721Token2"
     if [[ "$GATEWAY_TYPE" == "gateway" ]]; then
         DAPPCHAIN_NETWORK=$DAPPCHAIN_NETWORK \
         ETHEREUM_NETWORK=$ETHEREUM_NETWORK \

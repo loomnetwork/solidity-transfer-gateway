@@ -37,6 +37,7 @@ module.exports = async function (deployer, network, accounts) {
       fs.mkdirSync(outputDir)
     }
     fs.appendFileSync(path.join(outputDir, 'contracts.yml'), logs.join('\n'))
+    fs.appendFileSync(path.join(outputDir, 'contracts.yml'), '\n')
     fs.writeFileSync(path.join(outputDir, 'gateway_eth_addr'), gatewayInstance.address)
   } catch (err) {
     console.error(err)

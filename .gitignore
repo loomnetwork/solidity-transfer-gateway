@@ -5,3 +5,4 @@ build/
 tmp/
 mainnet/ganache.pid
 vendor
+/e2e_config/local_ganache/contracts.yml

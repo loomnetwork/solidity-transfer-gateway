@@ -20,6 +20,7 @@
     "eth-gas-reporter": "^0.1.10",
     "ethlint": "^1.2.3",
     "ganache-cli": "^6.4.1",
+    "js-yaml": "^3.13.1",
     "keythereum": "^1.0.4",
     "openzeppelin-solidity": "^2.2.0",
     "rlp": "^2.0.0",

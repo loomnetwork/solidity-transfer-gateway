@@ -47,6 +47,7 @@ wget ${DOWNLOAD_LOOM_URL}/loom-gateway
 chmod +x loom-gateway
 mv loom-gateway loom
 export LOOM_BIN=`pwd`/loom
+CFG=$REPO_ROOT/e2e_config/local_ganache/loom.cluster.yml
 
 wget ${DOWNLOAD_LOOM_URL}/loomcoin_tgoracle
 chmod +x loomcoin_tgoracle
@@ -62,7 +63,7 @@ if [[ -z "$ETHEREUM_NETWORK" ]]; then
 
     cd $REPO_ROOT/dappchain
     yarn install
-    yarn compile
+    CFG=$CFG yarn compile
 fi
 
 cd $REPO_ROOT
@@ -174,3 +175,4 @@ bash loom_e2e_tests.sh --init \
     --run-test ALL \
     --reset-latest-block-num \
     --set-transfer-fee
+

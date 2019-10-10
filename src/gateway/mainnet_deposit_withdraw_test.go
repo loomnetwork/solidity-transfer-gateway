@@ -125,28 +125,41 @@ func (s *TransferGatewayTestSuite) SetupSuite() {
 	s.loomEth, err = native_coin.ConnectToDAppChainETHContract(s.loomClient)
 	require.NoError(err)
 
-	s.loomERC20, err = erc20.ConnectERC20ToDAppChain(s.loomClient, "SampleERC20Token")
+	// erc20 token
+	dapptokenaddr := GetMainnetContractCfgString("loomchain_SampleERC20Token_1")
+	mirroredErc20TokenContract, err := ConnectToTokenContractByAddress(s.loomClient, "../ethcontract/SampleERC20Token.abi",
+		"SampleERC20Token", loom.MustParseAddress("default:"+dapptokenaddr))
+	require.NoError(err)
+	s.loomERC20 = &erc20.DAppChainERC20Contract{MirroredTokenContract: mirroredErc20TokenContract}
 	require.NoError(err)
 
 	// new mintable token
-	dapptokenaddr := GetMainnetContractCfgString("dapp_token_for_erc20_mintable_token_addr")
-	mirroredTokenContract, err := ConnectToTokenContractByAddress(s.loomClient, "../ethcontract/SampleERC20Token.abi",
+	dapptokenaddr = GetMainnetContractCfgString("loomchain_SampleERC20Token_2")
+	mirroredErc20TokenContract2, err := ConnectToTokenContractByAddress(s.loomClient, "../ethcontract/SampleERC20Token.abi",
 		"SampleERC20Token", loom.MustParseAddress("default:"+dapptokenaddr))
 	require.NoError(err)
-	s.loomERC20_2 = &erc20.DAppChainERC20Contract{MirroredTokenContract: mirroredTokenContract}
+	s.loomERC20_2 = &erc20.DAppChainERC20Contract{MirroredTokenContract: mirroredErc20TokenContract2}
 	require.NoError(err)
 
-	s.loomERC721, err = erc721.ConnectERC721ToDAppChain(s.loomClient, "SampleERC721Token")
-	require.NoError(err)
-
-	s.loomERC721X, err = erc721x.ConnectERC721XToDAppChain(s.loomClient, "SampleERC721XToken")
-	require.NoError(err)
-
-	dappeErc721tokenaddr := GetMainnetContractCfgString("dapp_token_for_erc721_mintable_token_addr")
+	dappeErc721tokenaddr := GetMainnetContractCfgString("loomchain_crypto_cards_addr")
 	mirroredErc721TokenContract, err := ConnectToTokenContractByAddress(s.loomClient, "../ethcontract/SampleERC721Token.abi",
 		"SampleERC721Token", loom.MustParseAddress("default:"+dappeErc721tokenaddr))
 	require.NoError(err)
-	s.loomERC721_2 = &erc721.DAppChainERC721Contract{MirroredTokenContract: mirroredErc721TokenContract}
+	s.loomERC721 = &erc721.DAppChainERC721Contract{MirroredTokenContract: mirroredErc721TokenContract}
+	require.NoError(err)
+
+	dappeErc721xTokenaddr := GetMainnetContractCfgString("loomchain_SampleERC721XToken_1")
+	mirroredErc721XTokenContract, err := ConnectToTokenContractByAddress(s.loomClient, "../ethcontract/SampleERC721XToken.abi",
+		"SampleERC721XToken", loom.MustParseAddress("default:"+dappeErc721xTokenaddr))
+	require.NoError(err)
+	s.loomERC721X = &erc721x.DAppChainERC721XContract{MirroredTokenContract: mirroredErc721XTokenContract}
+	require.NoError(err)
+
+	dappeErc721mintableTokenaddr := GetMainnetContractCfgString("loomchain_erc721_mintable_token_addr")
+	mirroredErc721mintableTokenContract, err := ConnectToTokenContractByAddress(s.loomClient, "../ethcontract/SampleERC721Token.abi",
+		"SampleERC721Token", loom.MustParseAddress("default:"+dappeErc721mintableTokenaddr))
+	require.NoError(err)
+	s.loomERC721_2 = &erc721.DAppChainERC721Contract{MirroredTokenContract: mirroredErc721mintableTokenContract}
 	require.NoError(err)
 
 	// Connect mainnet contracts

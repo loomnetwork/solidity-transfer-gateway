@@ -41,7 +41,7 @@ module.exports = async function (deployer, network, accounts) {
     await deployer.deploy(ValidatorManagerContract, validators, powers, threshold_num, threshold_denom, loomAddress, { from: vmcCreator })
     const validatorManagerContractInstance = await ValidatorManagerContract.deployed()
 
-    console.log("writing to file")
+    
     let logs = []
     for (let i = 0; i < validators.length; i++) {
       logs.push(`mainnet_validatorManagerContract_validator_${i}: "Address: ${validators[i]} / Power: ${powers[i]}"`)

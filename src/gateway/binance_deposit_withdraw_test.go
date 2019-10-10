@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/loomnetwork/go-loom"
+
 	bnbclient "github.com/binance-chain/go-sdk/client"
 	"github.com/binance-chain/go-sdk/client/transaction"
 	bnbtypes "github.com/binance-chain/go-sdk/common/types"
@@ -100,9 +102,18 @@ func (s *BinanceTransferGatewayTestSuite) SetupSuite() {
 
 	s.loomCoin, err = native_coin.ConnectToDAppChainLoomContract(s.loomClient)
 	require.NoError(err)
-	s.bnbToken, err = NewERC20TokenContract(s.loomClient, "../ethcontract/SampleBEP2Token.abi", "BNBToken")
+	dappbnbTokenaddr := GetMainnetContractCfgString("loomchain_bnb_token_addr")
+	mirroredBNBTokenContract, err := ConnectToTokenContractByAddress(s.loomClient, "../ethcontract/SampleBEP2Token.abi",
+		"SampleBEP2Token", loom.MustParseAddress("default:"+dappbnbTokenaddr))
 	require.NoError(err)
-	s.sampleBEP2Token, err = NewERC20TokenContract(s.loomClient, "../ethcontract/SampleBEP2Token.abi", "SampleBEP2Token")
+	s.bnbToken = &erc20.DAppChainERC20Contract{MirroredTokenContract: mirroredBNBTokenContract}
+	require.NoError(err)
+
+	dappbep2Tokenaddr := GetMainnetContractCfgString("loomchain_bep2_token_addr")
+	mirroredBEP2TokenContract, err := ConnectToTokenContractByAddress(s.loomClient, "../ethcontract/SampleBEP2Token.abi",
+		"SampleBEP2Token", loom.MustParseAddress("default:"+dappbep2Tokenaddr))
+	require.NoError(err)
+	s.sampleBEP2Token = &erc20.DAppChainERC20Contract{MirroredTokenContract: mirroredBEP2TokenContract}
 	require.NoError(err)
 
 	// Create identities
@@ -348,7 +359,7 @@ func (s *BinanceTransferGatewayTestSuite) TestBEP2DepositAndWithdraw() {
 	fmt.Println("send token tx hash on Binance Dex: ", result2.Hash)
 
 	// wait for oracle process
-	time.Sleep(30 * time.Second)
+	time.Sleep(60 * time.Second)
 
 	// Alice should now have her MOOL coin in the DAppChain Loom contract
 	aliceAccount, err = s.aliceDexClient.GetAccount(s.aliceBnbAddress.String())
@@ -428,7 +439,7 @@ func (s *BinanceTransferGatewayTestSuite) TestBEP2DepositAndWithdraw() {
 	require.NoError(err)
 	require.NotNil(wr.TxHash)
 
-	for i := 0; i < 15; i++ {
+	for i := 0; i < 20; i++ {
 		wr, err = s.dappchainGateway.WithdrawalReceipt(s.alice)
 		if wr == nil {
 			break
@@ -586,7 +597,7 @@ func (s *BinanceTransferGatewayTestSuite) TestBEP2DepositAndWithdrawOnlyBNB() {
 	require.NoError(err)
 	require.NotNil(wr.TxHash)
 
-	for i := 0; i < 15; i++ {
+	for i := 0; i < 20; i++ {
 		wr, err = s.dappchainGateway.WithdrawalReceipt(s.alice)
 		if wr == nil {
 			break

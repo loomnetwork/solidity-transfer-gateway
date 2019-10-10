@@ -1,7 +1,6 @@
 package main
 
 import (
-	"client"
 	"encoding/hex"
 	"fmt"
 	"gateway"
@@ -16,15 +15,11 @@ import (
 	bnbtypes "github.com/binance-chain/go-sdk/common/types"
 	"github.com/binance-chain/go-sdk/keys"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/ethclient"
 	loom "github.com/loomnetwork/go-loom"
 	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
 	loom_client "github.com/loomnetwork/go-loom/client"
 	"github.com/loomnetwork/go-loom/client/erc20"
-	"github.com/loomnetwork/go-loom/client/erc721"
-	"github.com/loomnetwork/go-loom/client/erc721x"
 	gw "github.com/loomnetwork/go-loom/client/gateway"
-	gwV2 "github.com/loomnetwork/go-loom/client/gateway_v2"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -44,27 +39,11 @@ var RootCmd = &cobra.Command{
 	Short: "e2e test contracts deployer",
 }
 
-func newDeployCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "deploy",
-		Short: "Deploys test contracts",
-		RunE:  deploy,
-	}
-}
-
 func newDeployTronCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "deploy-tron",
 		Short: "Deploys test contracts using Tron gateway",
 		RunE:  deployTron,
-	}
-}
-
-func newDeployBinanceCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "deploy-binance",
-		Short: "Deploys test contracts using Binance gateway",
-		RunE:  deployBinance,
 	}
 }
 
@@ -116,189 +95,6 @@ func newIssueTokenCmd() *cobra.Command {
 	}
 	cmd.Flags().StringVar(&privateKeyFile, "private-key", "", "Private key file")
 	return cmd
-}
-
-func deploy(cmd *cobra.Command, args []string) error {
-	ethereumContractsToDeploy := map[string]bool{}
-	if len(cmdFlags.EthereumContractNames) > 0 {
-		for _, contractName := range cmdFlags.EthereumContractNames {
-			ethereumContractsToDeploy[contractName] = true
-		}
-	}
-
-	dAppChainContractsToDeploy := map[string]bool{}
-	if len(cmdFlags.DAppChainContractNames) > 0 {
-		for _, contractName := range cmdFlags.DAppChainContractNames {
-			dAppChainContractsToDeploy[contractName] = true
-		}
-	}
-	fmt.Println("eth contract to deploy", ethereumContractsToDeploy)
-	fmt.Println("dapp contract to deploy", dAppChainContractsToDeploy)
-
-	loomCfg, err := gateway.ParseConfig([]string{cmdFlags.LoomDir})
-	if err != nil {
-		return errors.Wrap(err, "failed to parse loom config")
-	}
-
-	ethKey, dappchainKey := gateway.GetKeys("dan")
-	fmt.Println("dan", ethKey, dappchainKey)
-	erc721Creator, err := loom_client.CreateIdentityStr(ethKey, dappchainKey, loomCfg.ChainID)
-	if err != nil {
-		return errors.Wrap(err, "failed to create identity1")
-	}
-
-	ethKey, dappchainKey = gateway.GetKeys("trudy")
-	erc20Creator, err := loom_client.CreateIdentityStr(ethKey, dappchainKey, loomCfg.ChainID)
-	if err != nil {
-		return errors.Wrap(err, "failed to create identity2")
-	}
-
-	deploymentInfo, err := parseEthereumDeploymentInfo(cmdFlags.EthereumDeploymentInfoPath)
-	if err != nil {
-		return errors.Wrap(err, "failed to load deployment info file")
-	}
-
-	// Deploy contracts to Ethereum
-
-	if len(ethereumContractsToDeploy) > 0 {
-		ethClient, err := ethclient.Dial(loomCfg.TransferGateway.EthereumURI)
-		if err != nil {
-			return errors.Wrap(err, "failed to connect to Ethereum network")
-		}
-
-		mainnetGatewayAddr := gateway.GetMainnetContractCfgString("mainnet_gateway_addr")
-		mainnetGateway, err := gwV2.ConnectToMainnetGateway(ethClient, mainnetGatewayAddr)
-		if err != nil {
-			return errors.Wrap(err, "failed to connect to Gateway on Ethereum network")
-		}
-
-		if ethereumContractsToDeploy["CryptoCards"] {
-			contract, err := client.DeployMainnetCardsContract(ethClient, erc721Creator, mainnetGateway.Address)
-			if err != nil {
-				return errors.Wrap(err, "failed to deploy CryptoCards contract")
-			}
-
-			deploymentInfo.Set("mainnet_crypto_cards_addr", contract.Address)
-			deploymentInfo.Set("mainnet_crypto_cards_tx", contract.TxHash)
-		}
-
-		if ethereumContractsToDeploy["ERC721XCards"] {
-			contract, err := client.DeployMainnetERC721XContract(ethClient, erc721Creator, mainnetGateway.Address)
-			if err != nil {
-				return errors.Wrap(err, "failed to deploy ZBGCard contract")
-			}
-
-			deploymentInfo.Set("mainnet_erc721x_cards_addr", contract.Address)
-			deploymentInfo.Set("mainnet_erc721x_cards_tx", contract.TxHash)
-		}
-
-		if ethereumContractsToDeploy["GameToken"] {
-			contract, err := client.DeployMainnetERC20Contract(ethClient, erc20Creator, mainnetGateway.Address)
-			if err != nil {
-				return errors.Wrap(err, "failed to deploy GameToken contract")
-			}
-
-			deploymentInfo.Set("mainnet_game_token_addr", contract.Address)
-			deploymentInfo.Set("mainnet_game_token_tx", contract.TxHash)
-		}
-
-		if ethereumContractsToDeploy["SampleERC20MintableToken"] {
-			contract, err := client.DeployMainnetERC20MintableContract(ethClient, erc20Creator, mainnetGateway.Address)
-			if err != nil {
-				return errors.Wrap(err, "failed to deploy SampleERC20MintableToken contract")
-			}
-
-			deploymentInfo.Set("mainnet_erc20_mintable_token_addr", contract.Address)
-			deploymentInfo.Set("mainnet_erc20_mintable_token_tx", contract.TxHash)
-		}
-
-		if ethereumContractsToDeploy["SampleERC721MintableToken"] {
-			contract, err := client.DeployMainnetERC721MintableContract(ethClient, erc721Creator, mainnetGateway.Address)
-			if err != nil {
-				return errors.Wrap(err, "failed to deploy SampleERC721MintableToken contract")
-			}
-
-			deploymentInfo.Set("mainnet_erc721_mintable_token_addr", contract.Address)
-			deploymentInfo.Set("mainnet_erc721_mintable_token_tx", contract.TxHash)
-		}
-	}
-
-	// Deploy contracts to DAppChain
-
-	if len(dAppChainContractsToDeploy) > 0 {
-		contractDir := cmdFlags.ContractDir
-		if contractDir == "" {
-			contractDir, _ = os.Getwd()
-		}
-
-		loomClient := loom_client.NewDAppChainRPCClient(
-			loomCfg.ChainID,
-			loomCfg.TransferGateway.DAppChainWriteURI,
-			loomCfg.TransferGateway.DAppChainReadURI,
-		)
-
-		loomGateway, err := gw.ConnectToDAppChainGateway(loomClient, loomCfg.TransferGateway.DAppChainEventsURI)
-		if err != nil {
-			return errors.Wrap(err, "failed to connect to Gateway on DAppChain")
-		}
-
-		if dAppChainContractsToDeploy["SampleERC721Token"] {
-			c, err := gateway.DeployTokenToDAppChain(
-				loomClient, path.Join(contractDir, "SampleERC721Token.abi"),
-				path.Join(contractDir, "SampleERC721Token.bin"),
-				"SampleERC721Token", loomGateway.Address, erc721Creator.LoomSigner)
-			if err != nil {
-				return errors.Wrap(err, "failed to deploy SampleERC721Token")
-			}
-			fmt.Printf("SampleERC721Token at %v\n", c.Address)
-		}
-
-		if dAppChainContractsToDeploy["SampleERC721XToken"] {
-			c, err := erc721x.DeployERC721XToDAppChain(
-				loomClient, "SampleERC721XToken", loomGateway.Address, erc721Creator.LoomSigner)
-			if err != nil {
-				return errors.Wrap(err, "failed to deploy SampleERC721XToken")
-			}
-			fmt.Printf("SampleERC721XToken at %v\n", c.Address)
-		}
-
-		if dAppChainContractsToDeploy["SampleERC20Token"] {
-			c, err := erc20.DeployERC20ToDAppChain(
-				loomClient, "SampleERC20Token", loomGateway.Address, erc20Creator.LoomSigner)
-			if err != nil {
-				return errors.Wrap(err, "failed to deploy SampleERC20Token")
-			}
-			fmt.Printf("SampleERC20Token at %v\n", c.Address)
-		}
-
-		if dAppChainContractsToDeploy["SampleERC20Token2"] {
-			c, err := gateway.DeployTokenToDAppChain(
-				loomClient, path.Join(contractDir, "SampleERC20Token.abi"),
-				path.Join(contractDir, "SampleERC20Token.bin"),
-				"SampleERC20Token2", loomGateway.Address, erc20Creator.LoomSigner)
-			if err != nil {
-				return errors.Wrap(err, "failed to deploy SampleERC20Token2")
-			}
-			addr := c.Address.Local.String()
-			fmt.Printf("SampleERC20Token2 at %v\n", addr)
-			deploymentInfo.Set("dapp_token_for_erc20_mintable_token_addr", addr)
-		}
-
-		if dAppChainContractsToDeploy["SampleERC721Token2"] {
-			c, err := gateway.DeployTokenToDAppChain(
-				loomClient, path.Join(contractDir, "SampleERC721Token.abi"),
-				path.Join(contractDir, "SampleERC721Token.bin"),
-				"SampleERC721Token2", loomGateway.Address, erc721Creator.LoomSigner)
-			if err != nil {
-				return errors.Wrap(err, "failed to deploy SampleERC721Token2")
-			}
-			addr := c.Address.Local.String()
-			fmt.Printf("SampleERC721Token2 at %v\n", addr)
-			deploymentInfo.Set("dapp_token_for_erc721_mintable_token_addr", addr)
-		}
-	}
-
-	return deploymentInfo.WriteConfig()
 }
 
 func mapContracts(cmd *cobra.Command, args []string) error {
@@ -359,9 +155,14 @@ func mapContracts(cmd *cobra.Command, args []string) error {
 	}
 
 	if dAppChainContracts["SampleERC721Token"] {
-		loomCards, err := erc721.ConnectERC721ToDAppChain(loomClient, "SampleERC721Token")
+		localContractAddress := deploymentInfo.GetString("loomchain_crypto_cards_addr")
+		local, err := loom.LocalAddressFromHexString(localContractAddress)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "parsing address fail")
+		}
+		loomLocalContractAddress := loom.Address{
+			ChainID: loomCfg.ChainID,
+			Local:   local,
 		}
 
 		ethContractAddress := deploymentInfo.GetString("mainnet_crypto_cards_addr")
@@ -371,7 +172,7 @@ func mapContracts(cmd *cobra.Command, args []string) error {
 		}
 
 		err = loomGateway.AddContractMapping(
-			common.HexToAddress(ethContractAddress), loomCards.Address,
+			common.HexToAddress(ethContractAddress), loomLocalContractAddress,
 			erc721Creator, ethContractTxHash,
 		)
 		if err != nil {
@@ -387,9 +188,14 @@ func mapContracts(cmd *cobra.Command, args []string) error {
 	}
 
 	if dAppChainContracts["SampleERC721XToken"] {
-		loomERC721X, err := erc721x.ConnectERC721XToDAppChain(loomClient, "SampleERC721XToken")
+		localContractAddress := deploymentInfo.GetString("loomchain_SampleERC721XToken_1")
+		local, err := loom.LocalAddressFromHexString(localContractAddress)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "parsing address fail")
+		}
+		loomLocalContractAddress := loom.Address{
+			ChainID: loomCfg.ChainID,
+			Local:   local,
 		}
 
 		ethContractAddress := deploymentInfo.GetString("mainnet_erc721x_cards_addr")
@@ -399,7 +205,7 @@ func mapContracts(cmd *cobra.Command, args []string) error {
 		}
 
 		err = loomGateway.AddContractMapping(
-			common.HexToAddress(ethContractAddress), loomERC721X.Address,
+			common.HexToAddress(ethContractAddress), loomLocalContractAddress,
 			erc721Creator, ethContractTxHash,
 		)
 		if err != nil {
@@ -415,9 +221,14 @@ func mapContracts(cmd *cobra.Command, args []string) error {
 	}
 
 	if dAppChainContracts["SampleERC20Token"] {
-		loomCoin, err := erc20.ConnectERC20ToDAppChain(loomClient, "SampleERC20Token")
+		localContractAddress := deploymentInfo.GetString("loomchain_SampleERC20Token_1")
+		local, err := loom.LocalAddressFromHexString(localContractAddress)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "parsing address fail")
+		}
+		loomLocalContractAddress := loom.Address{
+			ChainID: loomCfg.ChainID,
+			Local:   local,
 		}
 
 		ethContractAddress := deploymentInfo.GetString("mainnet_game_token_addr")
@@ -427,7 +238,7 @@ func mapContracts(cmd *cobra.Command, args []string) error {
 		}
 
 		err = loomGateway.AddContractMapping(
-			common.HexToAddress(ethContractAddress), loomCoin.Address,
+			common.HexToAddress(ethContractAddress), loomLocalContractAddress,
 			erc20Creator, ethContractTxHash,
 		)
 		if err != nil {
@@ -443,24 +254,24 @@ func mapContracts(cmd *cobra.Command, args []string) error {
 	}
 
 	if dAppChainContracts["SampleERC20Token2"] {
-		dAppSampleERC20TokenAddr := deploymentInfo.GetString("dapp_token_for_erc20_mintable_token_addr")
+		localContractAddress := deploymentInfo.GetString("loomchain_SampleERC20Token_2")
+		local, err := loom.LocalAddressFromHexString(localContractAddress)
+		if err != nil {
+			return errors.Wrap(err, "parsing address fail")
+		}
+		loomLocalContractAddress := loom.Address{
+			ChainID: loomCfg.ChainID,
+			Local:   local,
+		}
+
 		ethContractAddress := deploymentInfo.GetString("mainnet_erc20_mintable_token_addr")
 		ethContractTxHash := deploymentInfo.GetString("mainnet_erc20_mintable_token_tx")
 		if !common.IsHexAddress(ethContractAddress) || ethContractTxHash == "" {
 			return errors.New("missing Ethereum address and/or tx hash for ERC20 contract")
 		}
-		dapplocalAddr, err := loom.LocalAddressFromHexString(dAppSampleERC20TokenAddr)
-		if err != nil {
-			return errors.Wrapf(err, "failed to convert %s to LocalAddress", dAppSampleERC20TokenAddr)
-		}
-
-		dappAddr := &loom.Address{
-			ChainID: loomClient.GetChainID(),
-			Local:   dapplocalAddr,
-		}
 
 		err = loomGateway.AddContractMapping(
-			common.HexToAddress(ethContractAddress), *dappAddr,
+			common.HexToAddress(ethContractAddress), loomLocalContractAddress,
 			erc20Creator, ethContractTxHash,
 		)
 		if err != nil {
@@ -476,25 +287,24 @@ func mapContracts(cmd *cobra.Command, args []string) error {
 	}
 
 	if dAppChainContracts["SampleERC721Token2"] {
-		dAppSampleERC721TokenAddr := deploymentInfo.GetString("dapp_token_for_erc721_mintable_token_addr")
+		localContractAddress := deploymentInfo.GetString("loomchain_erc721_mintable_token_addr")
+		local, err := loom.LocalAddressFromHexString(localContractAddress)
+		if err != nil {
+			return errors.Wrap(err, "parsing address fail")
+		}
+		loomLocalContractAddress := loom.Address{
+			ChainID: loomCfg.ChainID,
+			Local:   local,
+		}
+
 		ethContractAddress := deploymentInfo.GetString("mainnet_erc721_mintable_token_addr")
 		ethContractTxHash := deploymentInfo.GetString("mainnet_erc721_mintable_token_tx")
 		if !common.IsHexAddress(ethContractAddress) || ethContractTxHash == "" {
 			return errors.New("missing Ethereum address and/or tx hash for ERC721 contract")
 		}
 
-		dapplocalAddr, err := loom.LocalAddressFromHexString(dAppSampleERC721TokenAddr)
-		if err != nil {
-			return errors.Wrapf(err, "failed to convert %s to LocalAddress", dAppSampleERC721TokenAddr)
-		}
-
-		dappAddr := &loom.Address{
-			ChainID: loomClient.GetChainID(),
-			Local:   dapplocalAddr,
-		}
-
 		err = loomGateway.AddContractMapping(
-			common.HexToAddress(ethContractAddress), *dappAddr,
+			common.HexToAddress(ethContractAddress), loomLocalContractAddress,
 			erc721Creator, ethContractTxHash,
 		)
 		if err != nil {
@@ -701,96 +511,6 @@ func mapTronContracts(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func deployBinance(cmd *cobra.Command, args []string) error {
-	dAppChainContractsToDeploy := map[string]bool{}
-	if len(cmdFlags.DAppChainContractNames) > 0 {
-		for _, contractName := range cmdFlags.DAppChainContractNames {
-			dAppChainContractsToDeploy[contractName] = true
-		}
-	}
-
-	loomCfg, err := gateway.ParseConfig([]string{cmdFlags.LoomDir})
-	if err != nil {
-		return errors.Wrap(err, "failed to parse loom config")
-	}
-
-	bnbMnemonic, dappchainKey := gateway.GetBnbKeys("token_owner")
-	keyManager, err := keys.NewMnemonicKeyManager(bnbMnemonic)
-	if err != nil {
-		return err
-	}
-	bnbKey, err := keyManager.ExportAsPrivateKey()
-	if err != nil {
-		return err
-	}
-	tokenOwner, err := loom_client.CreateIdentityStr(bnbKey, dappchainKey, loomCfg.ChainID)
-	if err != nil {
-		return errors.Wrap(err, "failed to create identity")
-	}
-
-	if len(dAppChainContractsToDeploy) > 0 {
-		loomClient := loom_client.NewDAppChainRPCClient(
-			loomCfg.ChainID,
-			loomCfg.TransferGateway.DAppChainWriteURI,
-			loomCfg.TransferGateway.DAppChainReadURI,
-		)
-
-		loomGateway, err := gw.ConnectToDAppChainBinanceGateway(loomClient, loomCfg.TransferGateway.DAppChainEventsURI)
-		if err != nil {
-			return errors.Wrap(err, "failed to connect to Binance Gateway on DAppChain")
-		}
-
-		contractDir := cmdFlags.ContractDir
-		if contractDir == "" {
-			contractDir, _ = os.Getwd()
-		}
-
-		if dAppChainContractsToDeploy["BNBToken"] {
-			c, err := gateway.DeployTokenToDAppChain(
-				loomClient, path.Join(contractDir, "BNBToken.abi"),
-				path.Join(contractDir, "BNBToken.bin"),
-				"BNBToken", loomGateway.Address, tokenOwner.LoomSigner)
-			if err != nil {
-				return errors.Wrap(err, "failed to deploy BNBToken")
-			}
-			fmt.Printf("BNBToken at %v\n", c.Address)
-			e2eDir := path.Dir(cmdFlags.EthereumDeploymentInfoPath)
-			if err := os.MkdirAll(e2eDir, 0744); err != nil {
-				return errors.Wrap(err, "failed to create directory")
-			}
-			filename := path.Join(e2eDir, "dapp_bnb_token_address")
-			err = ioutil.WriteFile(filename, []byte(c.Address.String()), 0744)
-			if err != nil {
-				return errors.Wrap(err, "failed to write file dapp_bnb_token_address")
-			}
-			fmt.Println("wrote to file...", filename)
-		}
-
-		if dAppChainContractsToDeploy["SampleBEP2Token"] {
-			c, err := gateway.DeployTokenToDAppChain(
-				loomClient, path.Join(contractDir, "SampleBEP2Token.abi"),
-				path.Join(contractDir, "SampleBEP2Token.bin"),
-				"SampleBEP2Token", loomGateway.Address, tokenOwner.LoomSigner)
-			if err != nil {
-				return errors.Wrap(err, "failed to deploy SampleBEP2Token")
-			}
-			fmt.Printf("SampleBEP2Token at %v\n", c.Address)
-			e2eDir := path.Dir(cmdFlags.EthereumDeploymentInfoPath)
-			if err := os.MkdirAll(e2eDir, 0744); err != nil {
-				return errors.Wrap(err, "failed to create directory")
-			}
-			filename := path.Join(e2eDir, "dapp_sample_bep2_token_address")
-			err = ioutil.WriteFile(filename, []byte(c.Address.String()), 0744)
-			if err != nil {
-				return errors.Wrap(err, "failed to write file dapp_sample_bep2_token_address")
-			}
-			fmt.Println("wrote to file...", filename)
-		}
-	}
-
-	return nil
-}
-
 func mapBinanceContracts(cmd *cobra.Command, args []string) error {
 	dAppChainContracts := map[string]bool{}
 	if len(cmdFlags.DAppChainContractNames) > 0 {
@@ -864,33 +584,50 @@ func mapBinanceContracts(cmd *cobra.Command, args []string) error {
 		contractDir, _ = os.Getwd()
 	}
 
+	deploymentInfo, err := parseEthereumDeploymentInfo(cmdFlags.EthereumDeploymentInfoPath)
+	if err != nil {
+		return errors.Wrap(err, "failed to load deployment info file")
+	}
+
 	if dAppChainContracts["BNBToken"] {
-		bnbToken, err := gateway.NewERC20TokenContract(loomClient, path.Join(contractDir, "SampleBEP2Token.abi"), "BNBToken")
+		localContractAddress := deploymentInfo.GetString("loomchain_bnb_token_addr")
+		local, err := loom.LocalAddressFromHexString(localContractAddress)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "parsing address fail")
 		}
+		loomLocalContractAddress := loom.Address{
+			ChainID: loomCfg.ChainID,
+			Local:   local,
+		}
+
 		// Fake token contract that will be mapped to native BNB token on Binance Dex
 		fakeMainnetBNBTokenAddress := loom.MustParseAddress("binance:0x0000000000000000000000000000000000424e42")
 		err = loomGateway.AddAuthorizedBinanceContractMapping(
-			common.HexToAddress(fakeMainnetBNBTokenAddress.Local.Hex()), bnbToken.Address,
+			common.HexToAddress(fakeMainnetBNBTokenAddress.Local.Hex()), loomLocalContractAddress,
 			gatewayOwner,
 		)
 		if err != nil {
 			return errors.Wrap(err, "failed to map BNBToken contracts")
 		}
-		fmt.Printf("mapped %s <==> %s\n", bnbToken.Address.String(), fakeMainnetBNBTokenAddress.String())
+		fmt.Printf("mapped %s <==> %s\n", localContractAddress, fakeMainnetBNBTokenAddress.String())
 	}
 
 	if dAppChainContracts["SampleBEP2Token"] {
-		moolToken, err := gateway.NewERC20TokenContract(loomClient, path.Join(contractDir, "SampleBEP2Token.abi"), "SampleBEP2Token")
+		localContractAddress := deploymentInfo.GetString("loomchain_bep2_token_addr")
+		local, err := loom.LocalAddressFromHexString(localContractAddress)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "parsing address fail")
 		}
+		loomLocalContractAddress := loom.Address{
+			ChainID: loomCfg.ChainID,
+			Local:   local,
+		}
+
 		// MOOL-CBC is assumed to have already issued on BinanceChain
 		tokenNameHex := hex.EncodeToString([]byte("MOOL-CBC"))
 		fakeMainnetMoolTokenAddress := common.HexToAddress(tokenNameHex)
 		err = loomGateway.AddBinanceContractMapping(
-			fakeMainnetMoolTokenAddress, moolToken.Address,
+			fakeMainnetMoolTokenAddress, loomLocalContractAddress,
 			tokenOwner,
 		)
 		if err != nil {
@@ -904,7 +641,7 @@ func mapBinanceContracts(cmd *cobra.Command, args []string) error {
 			return errors.New("timeout while waiting for ContractMappingConfirmed event for ERC20 contracts")
 		}
 
-		fmt.Printf("mapped %s <==> %s\n", moolToken.Address.String(), fakeMainnetMoolTokenAddress.String())
+		fmt.Printf("mapped %s <==> %s\n", localContractAddress, fakeMainnetMoolTokenAddress.String())
 	}
 
 	if contractMappingSub != nil {
@@ -956,12 +693,10 @@ func main() {
 	RootCmd.MarkFlagFilename("deployment-file")
 
 	RootCmd.AddCommand(
-		newDeployCmd(),
 		newMapContractsCmd(),
 		newDeployTronCmd(),
 		newMapTronContractsCmd(),
 		newIssueTokenCmd(),
-		newDeployBinanceCmd(),
 		newMapBinanceContractsCmd(),
 	)
 

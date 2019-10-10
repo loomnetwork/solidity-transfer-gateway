@@ -7,18 +7,20 @@ contract SampleERC20Token is ERC20DAppToken, StandardToken {
     // Transfer Gateway contract address
     address public gateway;
     address public deployer;
-    string public name = "SampleERC20Token";
-    string public symbol = "DCC";
+    string public name;
+    string public symbol;
     uint8 public decimals = 18;
 
     /**
      * @dev Constructor function
      */
-    constructor(address _gateway) public {
+    constructor(address _gateway, string _name, string _symbol) public {
         gateway = _gateway;
         totalSupply_ = 1000000000 * (10 ** uint256(decimals));
         balances[_gateway] = 1000000000 * (10 ** uint256(decimals));
         deployer = msg.sender;
+        name = _name;
+        symbol = _symbol;
     }
 
     function mintToGateway(uint256 _amount) public {
