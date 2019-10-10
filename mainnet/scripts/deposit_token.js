@@ -25,7 +25,7 @@ const argv = yargs
 module.exports = async function (callback) {
   try {
     const accounts = await web3.eth.getAccounts()
-    const alice = accounts[3]
+    const alice = accounts[4]
 
     const dappNetwork = argv.dappNetwork || 'local'
     console.log("Using dapp network", dappNetwork)
