@@ -161,6 +161,43 @@ contract('Transfer Gateway', async (accounts) => {
       await shouldFail.reverting(reentrancy.attack())
     })
 
+    it('Withdraw ether with an invalid validator should fail', async () => {
+      await depositEther(alice, amount)
+      let nonce = await gateway.nonces.call(alice)
+      let hash = soliditySha3(TokenKind.ETH, alice, nonce, gateway.address, soliditySha3(amount))
+      let nonvalidator = createValidators(1)
+
+      // remove one validator
+      validators.addresses.pop()
+      validators.privateKeys.pop()
+      validators.pubKeys.pop()
+      let power = validators.powers.pop()
+      validators.totalPower -= power
+
+      // add non-validator
+      validators.addresses.push(nonvalidator.addresses[0])
+      validators.privateKeys.push(nonvalidator.privateKeys[0])
+      validators.pubKeys.push(nonvalidator.pubKeys[0])
+      validators.powers.push(nonvalidator.powers[0])
+      validators.totalPower += nonvalidator.powers[0]
+      
+      let sigs = await createSigns(validators, hash, validatorsTotalPower, 1.0) // threshold=1.0 to force every privatekey to sign
+      await shouldFail.reverting(gateway.withdrawETH(amount, sigs.signers, sigs.v, sigs.r, sigs.s, { from: alice }))
+    })
+
+    it('Withdraw ether with blank validator should fail', async () => {
+      await depositEther(alice, amount)
+      let nonce = await gateway.nonces.call(alice)
+      let hash = soliditySha3(TokenKind.ETH, alice, nonce, gateway.address, soliditySha3(amount))
+      let sigs = await createSigns(validators, hash, validatorsTotalPower, 1.0) // threshold=1.0 to force every privatekey to sign
+      sigs.v[0] = 0
+      sigs.r[0] = '0x0'
+      sigs.s[0] = '0x0'
+      await shouldFail.reverting(gateway.withdrawETH(amount, sigs.signers, sigs.v, sigs.r, sigs.s, { from: alice }))
+      
+    })
+    
+
   })
 
   describe('ERC20 deposit / withdrawals', async () => {
