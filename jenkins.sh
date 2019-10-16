@@ -54,16 +54,23 @@ chmod +x loomcoin_tgoracle
 wget ${DOWNLOAD_LOOM_URL}/tgoracle
 chmod +x tgoracle
 
+# Setting up solidity code analyzer
+source /var/lib/jenkins/python-virtualenvs/transfer-gateway-v2/bin/activate
+pip install slither-analyzer
+
+
 if [[ -z "$ETHEREUM_NETWORK" ]]; then
     cd $REPO_ROOT/mainnet
     yarn install
     yarn lint
     yarn compile
     yarn test
+    slither . --filter-path openzeppelin-solidity,contracts/mocks || echo "slither analyzed on mainnet contracts"
 
     cd $REPO_ROOT/dappchain
     yarn install
     CFG=$CFG yarn compile
+    CFG=$CFG slither . --filter-path openzeppelin-solidity || echo "slither analyzed on dappchain contracts"
 fi
 
 cd $REPO_ROOT
