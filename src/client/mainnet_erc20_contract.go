@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/loomnetwork/go-loom/client"
 )
@@ -50,6 +51,19 @@ func (c *MainnetERC20Contract) Transfer(to *client.Identity, from *client.Identi
 		return err
 	}
 	return client.WaitForTxConfirmation(context.TODO(), c.ethClient, tx, c.TxTimeout)
+}
+
+// TransferTx calls  Transfer and waits for it to complete. It returns tx and error.
+func (c *MainnetERC20Contract) TransferTx(caller *client.Identity, to common.Address, amount *big.Int) (*ethtypes.Transaction, error) {
+	tx, err := c.contract.Transfer(client.DefaultTransactOptsForIdentity(caller), to, amount)
+	if err != nil {
+		return nil, err
+	}
+	err = client.WaitForTxConfirmation(context.TODO(), c.ethClient, tx, c.TxTimeout)
+	if err != nil {
+		return nil, err
+	}
+	return tx, nil
 }
 
 func ConnectToMainnetERC20Contract(ethClient *ethclient.Client, address string) (*MainnetERC20Contract, error) {

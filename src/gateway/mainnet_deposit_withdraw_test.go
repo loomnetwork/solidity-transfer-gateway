@@ -1704,3 +1704,137 @@ func (s *TransferGatewayTestSuite) TestLoomCoinWithdrawalLimit() {
 	s.mineBlocksTillConfirmation()
 	time.Sleep(s.oracleWaitTime)
 }
+
+func (s *TransferGatewayTestSuite) TestHotWalletERC20DepositWithdraw() {
+	var err error
+	require := s.Require()
+
+	alice := s.alice
+
+	// Give Alice some ERC20 tokens on Mainnet
+	tokenAmount := sciNot(300)
+	tokenAmountHalf := sciNot(150)
+	require.NoError(s.mainnetCoin.Transfer(alice, s.coinCreator, tokenAmount))
+	aliceMainnetCoinStartBal, err := s.mainnetCoin.BalanceOf(alice)
+	require.NoError(err)
+	mainnetGatewayStartBal, err := s.mainnetGateway.ERC20Balance(s.mainnetCoin.Address)
+	require.NoError(err)
+	aliceLoomCoinStartBal, err := s.loomERC20.BalanceOf(alice)
+	require.NoError(err)
+
+	// Alice sends her tokens into the Mainnet Gateway contract
+	// Split into 2 txs to test if Gateway supports multiple deposits per user
+	tx1, err := s.mainnetCoin.TransferTx(alice, s.mainnetGateway.Address, tokenAmountHalf)
+	require.NoError(err)
+	tx2, err := s.mainnetCoin.TransferTx(alice, s.mainnetGateway.Address, tokenAmountHalf)
+	require.NoError(err)
+
+	curBalance, err := s.mainnetCoin.BalanceOf(alice)
+	require.NoError(err)
+	require.Equal(
+		tokenAmount.String(),
+		new(big.Int).Sub(aliceMainnetCoinStartBal, curBalance).String(),
+		"Alice should no longer have the tokens she deposited to the Mainnet Gateway")
+
+	curBalance, err = s.mainnetGateway.ERC20Balance(s.mainnetCoin.Address)
+	require.NoError(err)
+	require.Equal(
+		tokenAmount.String(),
+		new(big.Int).Sub(curBalance, mainnetGatewayStartBal).String(),
+		"Alice's tokens should be deposited in the Mainnet Gateway")
+
+	// Alice submits tx hash to Gateway
+	require.NoError(s.dappchainGateway.SubmitHotWalletDepositTxHash(alice, tx1.Hash()),
+		"Alice should be able to submit hot wallet tx1 hash to Gateway",
+	)
+	require.NoError(s.dappchainGateway.SubmitHotWalletDepositTxHash(alice, tx2.Hash()),
+		"Alice should be able to submit hot wallet tx2 hash to Gateway",
+	)
+
+	// Alice submits pending tx hash to Gateway, which should not work
+	require.Error(s.dappchainGateway.SubmitHotWalletDepositTxHash(alice, tx1.Hash()),
+		"Alice should NOT be able to submit pending hot wallet tx1 hash to Gateway",
+	)
+	require.Error(s.dappchainGateway.SubmitHotWalletDepositTxHash(alice, tx2.Hash()),
+		"Alice should NOT be able to submit pending hot wallet tx2 hash to Gateway",
+	)
+
+	// Let the Oracle notify the DAppChain Gateway about Alice's deposit
+	s.mineBlocksTillConfirmation()
+	time.Sleep(s.oracleWaitTime)
+
+	// Alice should now have her tokens in the DAppChain ERC20 contract
+	curBalance, err = s.loomERC20.BalanceOf(alice)
+	require.NoError(err)
+	require.Equal(
+		tokenAmount.String(),
+		new(big.Int).Sub(curBalance, aliceLoomCoinStartBal).String(),
+		"Alice's tokens should be in the DAppChain ERC20 contract")
+
+	// Alice submits already processed tx hash to Gateway, which should not work
+	// This test requires tg:check-txhash to be enabled.
+	require.Error(s.dappchainGateway.SubmitHotWalletDepositTxHash(alice, tx1.Hash()),
+		"Alice should NOT be able to submit processed hot wallet tx1 hash to Gateway",
+	)
+
+	// Alice must grant approval to the DAppChain Gateway to take ownership of the tokens when they're withdrawn
+	require.NoError(s.loomERC20.Approve(alice, s.dappchainGateway.Address, tokenAmount))
+
+	wr, err := s.dappchainGateway.WithdrawalReceipt(alice)
+	require.NoError(err)
+	require.Nil(wr, "DAppChain Gateway should've cleared out Alice's pending withdrawal")
+
+	// Now Alice can requests a withdrawal from the DAppChain Gateway...
+	for i := 0; i < 5; i++ {
+		err = s.dappchainGateway.WithdrawERC20(alice, tokenAmount, s.loomERC20.Address)
+		if err != nil {
+			if strings.Contains(err.Error(), "TG003") {
+				time.Sleep(5 * time.Second)
+			} else {
+				require.NoError(err)
+			}
+		} else {
+			break
+		}
+	}
+	require.NoError(err)
+
+	for {
+		wr, err = s.dappchainGateway.WithdrawalReceipt(alice)
+		if wr.OracleSignature != nil {
+			break
+		}
+		time.Sleep(5 * time.Second)
+	}
+	require.NoError(err)
+
+	// Alice can now withdraw the tokens from the Mainnet Gateway by presenting the signature from
+	// the withdrawal receipt
+	validators, err := s.validatorsManager.GetValidators()
+	require.NoError(err)
+
+	// Verify Alice's withdrawal receipt has been signed by enough validators
+	require.True(len(wr.OracleSignature)/65 >= 2*len(validators)/3, "Must be signed by 2/3rds validators")
+	require.NoError(s.mainnetGateway.WithdrawERC20(alice, tokenAmount, s.mainnetCoin.Address, wr.OracleSignature, validators))
+
+	// Alice should now have her tokens back on Mainnet
+	curBalance, err = s.mainnetGateway.ERC20Balance(s.mainnetCoin.Address)
+	require.NoError(err)
+	require.Equal(
+		mainnetGatewayStartBal.String(), curBalance.String(),
+		"Alice's tokens shouldn't be deposited in the Mainnet Gateway anymore")
+	aliceEndBalance, err := s.mainnetCoin.BalanceOf(alice)
+	require.NoError(err)
+	require.Equal(
+		aliceMainnetCoinStartBal.String(), aliceEndBalance.String(),
+		"Alice should have all her tokens in her Mainnet account")
+
+	// Let the Oracle notify the DAppChain Gateway that Alice has completed the withdrawal
+	s.mineBlocksTillConfirmation()
+	time.Sleep(s.oracleWaitTime)
+
+	// Check the DAppChain Gateway has been updated...
+	wr, err = s.dappchainGateway.WithdrawalReceipt(alice)
+	require.NoError(err)
+	require.Nil(wr, "DAppChain Gateway should've cleared out Alice's pending withdrawal")
+}

@@ -47,6 +47,8 @@ TransferGateway:
   OracleStartupDelay: 5
   # Number of seconds to wait between reconnection attempts.
   OracleReconnectInterval: 5
+  VerifyHotWalletDeposits: true
+  MainnetHotWalletAddress: "0xc643de39Dd15B7787D1B87dD48E6e7E2B1A1f118"
 LoomCoinTransferGateway:
   ContractEnabled: true
   BatchSignFnConfig:
@@ -83,3 +85,5 @@ LoomCoinTransferGateway:
   OracleReconnectInterval: 0
   # Address on from which the out-of-process Oracle should expose the status & metrics endpoints.
   OracleQueryAddress: "127.0.0.1:9997"
+  VerifyHotWalletDeposits: true
+  MainnetHotWalletAddress: "0x6804f48233F6Ff2b468f7636560d525ca951931e"

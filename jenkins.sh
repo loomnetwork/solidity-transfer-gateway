@@ -96,7 +96,7 @@ if [[ -z "$ETHEREUM_NETWORK" ]]; then
     bash loom_e2e_tests.sh --init \
                            --launch-dappchain --launch-ganache  --launch-oracle \
                            --deploy-dappchain-contracts --deploy-ethereum-contracts \
-                           --map-contracts
+                           --map-contracts --update-hot-wallet-address
 
     # # run the tests on a single node with yubihsm (disabled until we setup new remote signer)
     # pkill -f ganache || true
@@ -119,7 +119,7 @@ if [[ -z "$ETHEREUM_NETWORK" ]]; then
     bash loom_e2e_tests.sh --init \
                            --launch-dappchain --launch-ganache --launch-oracle \
                            --deploy-dappchain-contracts --deploy-ethereum-contracts \
-                           --map-contracts \
+                           --map-contracts --update-hot-wallet-address \
                            --nodes 4
 
     # # run the tests again on a 4-node cluster with yubihsm

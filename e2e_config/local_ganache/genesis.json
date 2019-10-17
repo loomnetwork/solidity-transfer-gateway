@@ -113,6 +113,10 @@
                     {
                         "name":"tg:withdrawal-limit",
                         "status":"WAITING"
+                    },
+                    {
+                        "name":"tg:hot-wallet",
+                        "status":"WAITING"
                     }
                 ]
             }

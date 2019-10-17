@@ -57,12 +57,13 @@ DEPLOY_TO_DAPPCHAIN=false
 DEPLOY_TO_ETHEREUM=false
 DEPLOY_TO_TRON=false
 GATEWAY_TYPE="gateway"
-ORACLE_WAIT_TIME=10
+ORACLE_WAIT_TIME=20
 TEST_TO_RUN="ALL"
 MAP_CONTRACTS=false
 DAPPCHAIN_NODE_COUNT=1
 RESET_LATEST_BLOCK_NUM=false
 SET_TRANSFER_FEE=false
+UPDATE_HOT_WALLET_ADDRESS=false
 
 # Scripts options:
 # -i / --init    - Reinitializes the DAppChain for a fresh test run.
@@ -95,6 +96,7 @@ while [[ "$#" > 0 ]]; do case $1 in
   --run-test) TEST_TO_RUN="$2"; shift; shift;;
   --reset-latest-block-num) RESET_LATEST_BLOCK_NUM=true; shift;;
   --set-transfer-fee) SET_TRANSFER_FEE=true; shift;;
+  --update-hot-wallet-address) UPDATE_HOT_WALLET_ADDRESS=true; shift;;
   *) echo "Unknown parameter: $1"; shift; shift;;
 esac; done
 
@@ -203,6 +205,7 @@ function start_chains {
         set_transfer_fee
     fi
 
+
     if [[ "$LAUNCH_ORACLE" == true ]]; then
         cd $LOOM_DIR
         $LOOM_ORACLE &
@@ -213,6 +216,11 @@ function start_chains {
         loomcoin_oracle_pid=$!
         echo "Launched Transfer Gateway Loom Oracle - Pid(${loomcoin_oracle_pid})"
         sleep 5
+    fi
+
+    if [[ "$UPDATE_HOT_WALLET_ADDRESS" == true ]]; then
+        echo "Updating Hot Wallet Address"
+        update_hot_wallet_address
     fi
 }
 
@@ -465,6 +473,25 @@ function set_transfer_fee {
     fi
 }
 
+function update_hot_wallet_address {
+    WALLET_ADDR1=`cat $E2E_CONFIG_DIR/loom.yml | grep MainnetHotWalletAddress | awk '{gsub("\"", "", $2); print $2}' | head -1`
+    WALLET_ADDR2=`cat $E2E_CONFIG_DIR/loom.yml | grep MainnetHotWalletAddress | awk '{gsub("\"", "", $2); print $2}' | tail -1`
+    echo 'update_hot_wallet_address...'
+    if (( DAPPCHAIN_NODE_COUNT > 1 )); then
+        if [[ "$GATEWAY_TYPE" == "gateway" || "$GATEWAY_TYPE" == "loomcoin-gateway" ]]; then
+            NODE_RPC_ADDR=`cat cluster/0/node_rpc_addr`
+            NODE_RPC_ADDR="http://"${NODE_RPC_ADDR}
+
+            cd $LOOM_DIR
+            $LOOM_BIN gateway update-hot-wallet-address $WALLET_ADDR1 gateway -k "$E2E_CONFIG_DIR/gateway_owner_priv.key" -u ${NODE_RPC_ADDR}
+            $LOOM_BIN gateway update-hot-wallet-address $WALLET_ADDR2 loomcoin-gateway -k "$E2E_CONFIG_DIR/gateway_owner_priv.key" -u ${NODE_RPC_ADDR}
+        fi
+    else
+        cd $LOOM_DIR
+        $LOOM_BIN gateway update-hot-wallet-address $WALLET_ADDR1 gateway -k "$E2E_CONFIG_DIR/gateway_owner_priv.key"
+        $LOOM_BIN gateway update-hot-wallet-address $WALLET_ADDR2 loomcoin-gateway -k "$E2E_CONFIG_DIR/gateway_owner_priv.key"
+    fi
+}
 
 # BUILD_TAG is usually only set by Jenkins, so when running locally just hardcode some value
 if [[ -z "$BUILD_TAG" ]]; then
@@ -584,6 +611,13 @@ if [[ "$SKIP_TESTS" == false ]]; then
                 ETHEREUM_NETWORK=$ETHEREUM_NETWORK \
                 ORACLE_WAIT_TIME=$ORACLE_WAIT_TIME \
                 go test gateway -tags "evm" -run TestTransferGatewayTestSuite -testify.m ^TestLoomCoinWithdrawalLimit$
+            fi
+            if [[ "$TEST_TO_RUN" == "ALL" ]] || [[ "$TEST_TO_RUN" == "HotWalletERC20DepositWithdrawal" ]]; then
+                LOOM_DIR=$LOOM_DIR \
+                DAPPCHAIN_NETWORK=$DAPPCHAIN_NETWORK \
+                ETHEREUM_NETWORK=$ETHEREUM_NETWORK \
+                ORACLE_WAIT_TIME=$ORACLE_WAIT_TIME \
+                go test gateway -tags "evm" -run TestTransferGatewayTestSuite -testify.m ^TestHotWalletERC20DepositWithdraw$
             fi
         fi
     elif [[ "$GATEWAY_TYPE" == "tron-gateway" ]]; then
