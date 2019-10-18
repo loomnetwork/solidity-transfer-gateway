@@ -1,6 +1,7 @@
 package gateway
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 	"os"
@@ -33,7 +34,11 @@ const (
 
 	// BNB native token
 	BNBNativeToken = "BNB"
+
+	MaxBinanceRetry = 3
 )
+
+var ErrBinanceRateLimit = errors.New(`bad response, status code 429, response: {"message":"API rate limit exceeded"}`)
 
 type BinanceTransferGatewayTestSuite struct {
 	suite.Suite
@@ -199,10 +204,16 @@ func (s *BinanceTransferGatewayTestSuite) TestLoomDepositAndWithdraw() {
 	}
 	// make sure we have put loom address in memo
 	aliceDappchainAddr := "loom" + s.alice.LoomAddr.Local.Hex()
-	result, err := s.aliceDexClient.SendToken(payload, true, transaction.WithMemo(aliceDappchainAddr))
-	require.NoError(err)
-	fmt.Println("send token tx hash on Binance Dex: ", result.Hash)
-
+	for i := 0; i < MaxBinanceRetry; i++ {
+		result, err := s.aliceDexClient.SendToken(payload, true, transaction.WithMemo(aliceDappchainAddr))
+		if err != nil && err == ErrBinanceRateLimit {
+			time.Sleep(10 * time.Second)
+			continue
+		}
+		require.NoError(err)
+		fmt.Println("send token tx hash on Binance Dex: ", result.Hash)
+		break
+	}
 	time.Sleep(15 * time.Second)
 
 	// Alice should now have her loomcoin in the DAppChain Loom contract
@@ -350,9 +361,16 @@ func (s *BinanceTransferGatewayTestSuite) TestBEP2DepositAndWithdraw() {
 
 	// make sure we have put loom address in memo
 	aliceDappchainAddr := "loom" + s.alice.LoomAddr.Local.Hex()
-	result, err := s.aliceDexClient.SendToken(payload, true, transaction.WithMemo(aliceDappchainAddr))
-	require.NoError(err)
-	fmt.Println("send token tx hash on Binance Dex: ", result.Hash)
+	for i := 0; i < MaxBinanceRetry; i++ {
+		result, err := s.aliceDexClient.SendToken(payload, true, transaction.WithMemo(aliceDappchainAddr))
+		if err != nil && err == ErrBinanceRateLimit {
+			time.Sleep(10 * time.Second)
+			continue
+		}
+		require.NoError(err)
+		fmt.Println("send token tx hash on Binance Dex: ", result.Hash)
+		break
+	}
 
 	result2, err := s.aliceDexClient.SendToken(payload2, true, transaction.WithMemo(aliceDappchainAddr))
 	require.NoError(err)
@@ -516,9 +534,16 @@ func (s *BinanceTransferGatewayTestSuite) TestBEP2DepositAndWithdrawOnlyBNB() {
 	}
 	// make sure we have put loom address in memo
 	aliceDappchainAddr := "loom" + s.alice.LoomAddr.Local.Hex()
-	result, err := s.aliceDexClient.SendToken(payload, true, transaction.WithMemo(aliceDappchainAddr))
-	require.NoError(err)
-	fmt.Println("send token tx hash on Binance Dex: ", result.Hash)
+	for i := 0; i < MaxBinanceRetry; i++ {
+		result, err := s.aliceDexClient.SendToken(payload, true, transaction.WithMemo(aliceDappchainAddr))
+		if err != nil && err == ErrBinanceRateLimit {
+			time.Sleep(10 * time.Second)
+			continue
+		}
+		require.NoError(err)
+		fmt.Println("send token tx hash on Binance Dex: ", result.Hash)
+		break
+	}
 
 	// wait for oracle process
 	time.Sleep(60 * time.Second)
