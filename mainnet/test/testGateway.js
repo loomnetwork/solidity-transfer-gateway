@@ -68,6 +68,7 @@ contract('Transfer Gateway', async (accounts) => {
     await normalErc721.mintTokens(alice, {from: validator})
 
     validatorsTotalPower = await vmc.totalPower.call();
+
   })
 
   describe('Ether deposit / withdrawals + edge cases', async () => {
@@ -479,10 +480,10 @@ contract('Transfer Gateway', async (accounts) => {
 
     it('Cannot deposit', async () => {
       await gateway.enableGateway(false, { from: validator })
-      await shouldFail.reverting(depositEther(alice, amount))
-      await shouldFail.reverting(depositERC20(alice, amountErc20))
-      await shouldFail.reverting(depositERC721(alice, uidErc721))
-      await shouldFail.reverting(depositERC721x(alice, uidErc721x, amountErc721x))
+      await shouldFail.reverting.withMessage(depositEther(alice, amount), "Gateway is disabled")
+      await shouldFail.reverting.withMessage(depositERC20(alice, amountErc20), "Gateway is disabled")
+      await shouldFail.reverting.withMessage(depositERC721(alice, uidErc721), "Gateway is disabled")
+      await shouldFail.reverting.withMessage(depositERC721x(alice, uidErc721x, amountErc721x), "Gateway is disabled")
     })
 
     it('Cannot withdraw', async () => {
