@@ -8,7 +8,7 @@ module.exports = async function (deployer, network, accounts) {
   if (network === 'test') { return }
   const gatewayCreator = accounts[0]
   console.log(`Deploying Gateway from account: ${gatewayCreator}`)
-    let vmcAddress
+  let vmcAddress
 
   if (network == 'local_ganache' || network == 'develop' || network == 'test' || network == 'rinkeby') {
     vmcAddress = ValidatorManagerContract.address
@@ -39,6 +39,25 @@ module.exports = async function (deployer, network, accounts) {
     fs.appendFileSync(path.join(outputDir, 'contracts.yml'), logs.join('\n'))
     fs.appendFileSync(path.join(outputDir, 'contracts.yml'), '\n')
     fs.writeFileSync(path.join(outputDir, 'gateway_eth_addr'), gatewayInstance.address)
+  } catch (err) {
+    console.error(err)
+  }
+
+  // Create migration file from the deployed Gateway contract
+  try {
+    const outputDir = path.join(__dirname, `../../e2e_config/${network}`)
+    if (!fs.existsSync(outputDir)) {
+      fs.mkdirSync(outputDir)
+    }
+    const data = {
+      'gateway_name': 'gateway',
+      'mainnet_address': {
+        'chain_id': 'eth',
+        'local': Buffer.from(gatewayInstance.address.replace(/^0x/,''), 'hex').toString('base64')
+      }
+    }
+    const migration2 = JSON.stringify(data)
+    fs.writeFileSync(path.join(outputDir, 'migration-2.json'), migration2)
   } catch (err) {
     console.error(err)
   }
