@@ -1,0 +1,6 @@
+.DS_Store
+node_modules/
+build/
+/e2e_config/local_ganache/gateway_eth_addr
+tmp/
+mainnet/ganache.pid

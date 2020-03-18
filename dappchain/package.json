@@ -1,0 +1,28 @@
+{
+  "name": "tutorialtoken",
+  "version": "1.0.0",
+  "description": "",
+  "main": "truffle.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "dev": "lite-server",
+    "compile": "truffle compile",
+    "test": "npm run ganache-cli:dev && truffle test --network loom_dapp_chain",
+    "lint": "solium --dir ./contracts",
+    "ganache-cli:dev": "scripts/ganache-cli.sh",
+    "migrate:dev": "rm -rf build && npm run migrate:dev:contracts",
+    "migrate:dev:contracts": "truffle migrate --all --network loom_dapp_chain"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "lite-server": "^2.3.0"
+  },
+  "dependencies": {
+    "loom-truffle-provider": "^0.3.0",
+    "openzeppelin-solidity": "^1.12.0",
+    "truffle": "^4.1.13"
+  }
+}

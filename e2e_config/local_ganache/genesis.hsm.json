@@ -1,0 +1,81 @@
+{
+    "contracts": [
+        {
+            "vm": "plugin",
+            "format": "plugin",
+            "name": "coin",
+            "location": "coin:1.0.0",
+            "init": null
+        },
+        {
+            "vm": "plugin",
+            "format": "plugin",
+            "name": "dpos",
+            "location": "dpos:1.0.0",
+            "init": {
+                "params": {
+                    "witnessCount": "21",
+                    "electionCycleLength": "604800",
+                    "minPowerFraction": "5"
+                },
+                "validators": [
+                    {
+                        "pubKey": "cpcIKimrZcpvu/oLQzP8sA8+LlyzJiHio/TE/JGLT5c=",
+                        "power": "10"
+                    }
+                ]
+            }
+        },
+        {
+            "vm": "plugin",
+            "format": "plugin",
+            "name": "ethcoin",
+            "location": "ethcoin:1.0.0",
+            "init": null
+        },
+        {
+            "vm": "plugin",
+            "format": "plugin",
+            "name": "addressmapper",
+            "location": "addressmapper:0.1.0",
+            "init": null
+        },
+        {
+            "vm": "plugin",
+            "format": "plugin",
+            "name": "gateway",
+            "location": "gateway:0.1.0",
+            "init": {
+                "owner": {
+                    "chain_id": "default",
+                    "local": "kQid61xWyD0s1aVxZhB2Yf3zdZ4="
+                },
+                "oracles": [
+                    {
+                        "chain_id": "default",
+                        "local": "fVpkXRxvmNrn1a1Nv1h5lHuiFYU="
+                    }
+                ]
+            }
+        },
+        {
+            "vm": "plugin",
+            "format": "plugin",
+            "name": "loomcoin-gateway",
+            "location": "loomcoin-gateway:0.1.0",
+            "init": {
+                "owner": {
+                    "chain_id": "default",
+                    "local": "kQid61xWyD0s1aVxZhB2Yf3zdZ4="
+                },
+                "oracles": [
+                    {
+                        "chain_id": "default",
+                        "local": "fVpkXRxvmNrn1a1Nv1h5lHuiFYU="
+                    }
+                ]
+            }
+        }
+
+    ]
+}
