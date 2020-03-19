@@ -1,64 +1,157 @@
-pragma solidity ^0.4.24;
+pragma solidity ^0.5.7;
 
-import "openzeppelin-solidity/contracts/token/ERC721/ERC721.sol";
-import "openzeppelin-solidity/contracts/token/ERC721/ERC721Receiver.sol";
+import "openzeppelin-solidity/contracts/token/ERC721/IERC721.sol";
+import "openzeppelin-solidity/contracts/token/ERC721/IERC721Receiver.sol";
 
 import "erc721x/contracts/Interfaces/ERC721X.sol";
 import "erc721x/contracts/Interfaces/ERC721XReceiver.sol";
 
 import "./ERC20Gateway.sol";
+import "./ValidatorManagerContract.sol";
 
-contract Gateway is ERC20Gateway, ERC721Receiver, ERC721XReceiver {
+contract Gateway is ERC20Gateway, IERC721Receiver, ERC721XReceiver {
 
+  /// @notice Event to log the deposit of ETH to the Gateway.
+  /// @param  from Address of the entity that made the withdrawal.
+  /// @param  amount The ETH amount that was deposited
   event ETHReceived(address from, uint256 amount);
+
+  /// @notice Event to log the deposit of an ERC721 to the Gateway.
+  /// @param  operator Address of the operator accordingto the erc721 standard
+  /// @param  from Address of the entity that made the withdrawal.
+  /// @param  tokenId The ERC721 token ID that was deposited
+  /// @param  contractAddress Address of the ERC721 token
+  /// @param  data Any extra data that was provided during the deposit
   event ERC721Received(address operator, address from, uint256 tokenId, address contractAddress, bytes data);
+
+  /// @notice Event to log the deposit of an ERC721x to the Gateway.
+  /// @param  operator Address of the operator accordingto the erc721 standard
+  /// @param  from Address of the entity that made the withdrawal.
+  /// @param  tokenId The ERC721x token ID that was deposited
+  /// @param  amount The ERC721x amount that was deposited
+  /// @param  contractAddress Address of the ERC721 token
+  /// @param  data Any extra data that was provided during the deposit
   event ERC721XReceived(address operator, address from, uint256 tokenId, uint256 amount, address contractAddress, bytes data);
+
+  /// @notice Event to log the batch deposit of multiple ERC721x to the Gateway.
+  /// @param  operator Address of the operator accordingto the erc721 standard
+  /// @param  to Address of the entity that made the withdrawal.
+  /// @param  tokenTypes The ERC721x token IDs that were deposited
+  /// @param  amounts The ERC721x token amounts that wereas deposited
+  /// @param  contractAddress Address of the ERC721 token
+  /// @param  data Any extra data that was provided during the deposit
   event ERC721XBatchReceived(address operator, address to, uint256[] tokenTypes, uint256[] amounts, address contractAddress, bytes data);
 
-  constructor (
-    address loomToken, address[] _validators, uint8 _threshold_num, uint8 _threshold_denom,
-    address[] _accounts, uint256[] _nonces
-  ) public ERC20Gateway(loomToken, _validators, _threshold_num, _threshold_denom, _accounts, _nonces) {
+  /// @notice Initialize the contract with the VMC
+  /// @param _vmc the validator manager contrct address
+  constructor (ValidatorManagerContract _vmc)
+    public ERC20Gateway(_vmc) {
   }
 
-  function withdrawERC721X(uint256 tokenId, uint256 amount, bytes sig, address contractAddress)
+  /// @notice Function to withdraw ERC721X tokens from the Gateway.
+  /// @param  tokenId The tokenId being withdrawn
+  /// @param  amount The amount being withdrawn
+  /// @param  contractAddress The address of the token being withdrawn
+  /// @param  _signersIndexes Array of indexes of the validator's signatures based on
+  ///         the currently elected validators
+  /// @param  _v Array of `v` values from the validator signatures
+  /// @param  _r Array of `r` values from the validator signatures
+  /// @param  _s Array of `s` values from the validator signatures
+  function withdrawERC721X(
+      uint256 tokenId, 
+      uint256 amount,
+      address contractAddress,
+      uint256[] calldata _signersIndexes,
+      uint8[] calldata _v,
+      bytes32[] calldata _r,
+      bytes32[] calldata _s
+  )
     external
-    signedByValidator(
-        createMessageWithdraw(
-            keccak256(abi.encodePacked(tokenId, amount, contractAddress))),
-            sig
-    )
   {
+    bytes32 message = createMessageWithdraw(
+            "\x12Withdraw ERC721X:\n",
+            keccak256(abi.encodePacked(tokenId, amount, contractAddress))
+    );
+
+    // Ensure enough power has signed the withdrawal
+    vmc.checkThreshold(message, _signersIndexes, _v, _r, _s);
+
+    // Replay protection
+    nonces[msg.sender]++;
+                       
     ERC721X(contractAddress).safeTransferFrom(address(this), msg.sender, tokenId, amount);
     emit TokenWithdrawn(msg.sender, TokenKind.ERC721X, contractAddress, amount);
+
   }
 
 
-  function withdrawERC721(uint256 uid, bytes sig, address contractAddress)
+  /// @notice Function to withdraw ERC721 tokens from the Gateway.
+  /// @param  uid The uid of the token being withdrawn
+  /// @param  contractAddress The address of the token being withdrawn
+  /// @param  _signersIndexes Array of indexes of the validator's signatures based on
+  ///         the currently elected validators
+  /// @param  _v Array of `v` values from the validator signatures
+  /// @param  _r Array of `r` values from the validator signatures
+  /// @param  _s Array of `s` values from the validator signatures
+  function withdrawERC721(
+      uint256 uid, 
+      address contractAddress,
+      uint256[] calldata _signersIndexes,
+      uint8[] calldata _v,
+      bytes32[] calldata _r,
+      bytes32[] calldata _s
+  )
     external
-    signedByValidator(
-        createMessageWithdraw(
-            keccak256(abi.encodePacked(uid, contractAddress))),
-            sig
-    )
   {
-    ERC721(contractAddress).safeTransferFrom(address(this),  msg.sender, uid);
+    bytes32 message = createMessageWithdraw(
+            "\x11Withdraw ERC721:\n",
+            keccak256(abi.encodePacked(uid, contractAddress))
+    );
+
+    // Ensure enough power has signed the withdrawal
+    vmc.checkThreshold(message, _signersIndexes, _v, _r, _s);
+
+    // Replay protection
+    nonces[msg.sender]++;
+
+    IERC721(contractAddress).safeTransferFrom(address(this),  msg.sender, uid);
     emit TokenWithdrawn(msg.sender, TokenKind.ERC721, contractAddress, uid);
+
   }
 
-  function withdrawETH(uint256 amount, bytes sig)
+  /// @notice Function to withdraw ETH tokens from the Gateway.
+  /// @param  amount The amount being withdrawn
+  /// @param  _signersIndexes Array of indexes of the validator's signatures based on
+  ///         the currently elected validators
+  /// @param  _v Array of `v` values from the validator signatures
+  /// @param  _r Array of `r` values from the validator signatures
+  /// @param  _s Array of `s` values from the validator signatures
+  function withdrawETH(
+      uint256 amount, 
+      uint256[] calldata _signersIndexes,
+      uint8[] calldata _v,
+      bytes32[] calldata _r,
+      bytes32[] calldata _s
+  )
     external
-    signedByValidator(
-        createMessageWithdraw(
-            keccak256(abi.encodePacked(amount))),
-            sig
-    )
   {
-    msg.sender.transfer(amount); // ensure it's not reentrant
+    bytes32 message = createMessageWithdraw(
+            "\x0eWithdraw ETH:\n",
+            keccak256(abi.encodePacked(amount))
+    );
+
+    // Ensure enough power has signed the withdrawal
+    vmc.checkThreshold(message, _signersIndexes, _v, _r, _s);
+
+    // Replay protection
+    nonces[msg.sender]++;
+
+    msg.sender.transfer(amount); // not reentrant
+
     emit TokenWithdrawn(msg.sender, TokenKind.ETH, address(0), amount);
   }
 
-  /// @dev Receiver functions for 1-step deposits to the gateway
+  /// @dev Receiver function for ER721X 1-step deposits to the gateway
   /// @param _from Address of the token owner
   /// @param _tokenId Id of the token or tokenId
   /// @param _amount Amount of tokens received
@@ -68,12 +161,12 @@ contract Gateway is ERC20Gateway, ERC721Receiver, ERC721XReceiver {
       address _from,
       uint256 _tokenId,
       uint256 _amount,
-      bytes _data
+      bytes memory _data
   )
     public
     returns (bytes4)
   {
-    require(allowAnyToken || allowedTokens[msg.sender], "Not a valid token");
+    require(vmc.isTokenAllowed(msg.sender), "Not a valid token");
     emit ERC721XReceived(
         _operator,
         _from,
@@ -85,19 +178,24 @@ contract Gateway is ERC20Gateway, ERC721Receiver, ERC721XReceiver {
     return ERC721X_RECEIVED;
   }
 
+  /// @dev Receiver function for ER721X 1-step batch-deposits to the gateway
+  /// @param _from Address of the token owner
+  /// @param _types Ids of the tokens
+  /// @param _amounts Amounts of tokens received
+  /// @return ERC721X_RECEIVED bytes function signature
   function onERC721XBatchReceived(
           address _operator,
           address _from,
-          uint256[] _types,
-          uint256[] _amounts,
-          bytes _data
+          uint256[] memory _types,
+          uint256[] memory _amounts,
+          bytes memory _data
   )
     public
     returns(bytes4) 
   {
-    require(allowAnyToken || allowedTokens[msg.sender], "Not a valid token");
+    require(vmc.isTokenAllowed(msg.sender), "Not a valid token");
     uint256 length = _types.length;
-    require(length == _amounts.length);
+    require(length == _amounts.length, "Array lengths do not match");
     emit ERC721XBatchReceived(
         _operator,
         _from,
@@ -109,15 +207,20 @@ contract Gateway is ERC20Gateway, ERC721Receiver, ERC721XReceiver {
     return ERC721X_BATCH_RECEIVE_SIG;
   }
 
-  function onERC721Received(address _operator, address _from, uint256 _uid, bytes _data)
+  /// @dev Receiver function for ER721 1-step deposits to the gateway
+  /// @param _from Address of the token owner
+  /// @param _uid Id of the token or tokenId
+  /// @return ERC721_RECEIVED bytes function signature
+  function onERC721Received(address _operator, address _from, uint256 _uid, bytes memory _data)
     public
     returns (bytes4) 
   {
-    require(allowAnyToken || allowedTokens[msg.sender], "Not a valid token");
+    require(vmc.isTokenAllowed(msg.sender), "Not a valid token");
     emit ERC721Received(_operator, _from, _uid, msg.sender, _data);
-    return ERC721_RECEIVED;
+    return this.onERC721Received.selector;
   }
 
+  /// @notice Fallback function just emits an event
   function () external payable {
     emit ETHReceived(msg.sender, msg.value);
   }
@@ -128,11 +231,12 @@ contract Gateway is ERC20Gateway, ERC721Receiver, ERC721XReceiver {
 
   // Check if contract owns specific erc721 token
   function getERC721(uint256 uid, address contractAddress) external view returns (bool) {
-    return ERC721(contractAddress).ownerOf(uid) == address(this);
+    return IERC721(contractAddress).ownerOf(uid) == address(this);
   }
 
   // Returns ERC721 token by uid
   function getERC721X(uint256 tokenId, address contractAddress) external view returns (uint256) {
     return ERC721X(contractAddress).balanceOf(address(this), tokenId);
   }
+
 }

@@ -1,9 +1,9 @@
-pragma solidity ^0.4.24;
+pragma solidity <0.6.0;
 
-import "openzeppelin-solidity/contracts/token/ERC721/ERC721Token.sol";
+import "openzeppelin-solidity/contracts/token/ERC721/ERC721Full.sol";
 
 
-contract CryptoCards is ERC721Token("CryptoCards", "CCC") {
+contract CryptoCards is ERC721Full("CryptoCards", "CCC") {
 
     mapping(address => bool) private registered;
 
@@ -18,7 +18,7 @@ contract CryptoCards is ERC721Token("CryptoCards", "CCC") {
     function mintTokens(address _to) external {
         require(msg.sender == owner);
         for (int j = 0; j < 5 ; j++) {
-            uint256 tokenId = allTokens.length + 1;
+            uint256 tokenId = totalSupply() + 1;
             _mint(_to, tokenId);
         }
     }

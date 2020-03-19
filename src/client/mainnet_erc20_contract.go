@@ -6,9 +6,9 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/loomnetwork/go-loom/client"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/loomnetwork/go-loom/client"
 )
 
 type MainnetERC20Contract struct {
@@ -52,7 +52,7 @@ func (c *MainnetERC20Contract) Transfer(to *client.Identity, from *client.Identi
 	return client.WaitForTxConfirmation(context.TODO(), c.ethClient, tx, c.TxTimeout)
 }
 
-func ConnectToMainnetERC20Contract(ethClient *ethclient.Client,  address string) (*MainnetERC20Contract, error) {
+func ConnectToMainnetERC20Contract(ethClient *ethclient.Client, address string) (*MainnetERC20Contract, error) {
 	contractAddr := common.HexToAddress(address)
 	contract, err := ethcontract.NewMainnetGameTokenContract(contractAddr, ethClient)
 	if err != nil {

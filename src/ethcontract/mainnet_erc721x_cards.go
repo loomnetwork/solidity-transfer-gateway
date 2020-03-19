@@ -4,27 +4,14 @@
 package ethcontract
 
 import (
-	"math/big"
-	"strings"
-
 	ethereum "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
-)
-
-// Reference imports to suppress errors if they are not otherwise used.
-var (
-	_ = big.NewInt
-	_ = strings.NewReader
-	_ = ethereum.NotFound
-	_ = abi.U256
-	_ = bind.Bind
-	_ = common.Big1
-	_ = types.BloomLookup
-	_ = event.NewSubscription
+	"math/big"
+	"strings"
 )
 
 // MainnetERC721XCardsContractABI is the input ABI used to generate the binding from.
@@ -476,28 +463,28 @@ func (_MainnetERC721XCardsContract *MainnetERC721XCardsContractCallerSession) Ow
 
 // SupportsInterface is a free data retrieval call binding the contract method 0x01ffc9a7.
 //
-// Solidity: function supportsInterface(_interfaceId bytes4) constant returns(bool)
-func (_MainnetERC721XCardsContract *MainnetERC721XCardsContractCaller) SupportsInterface(opts *bind.CallOpts, _interfaceId [4]byte) (bool, error) {
+// Solidity: function supportsInterface(interfaceId bytes4) constant returns(bool)
+func (_MainnetERC721XCardsContract *MainnetERC721XCardsContractCaller) SupportsInterface(opts *bind.CallOpts, interfaceId [4]byte) (bool, error) {
 	var (
 		ret0 = new(bool)
 	)
 	out := ret0
-	err := _MainnetERC721XCardsContract.contract.Call(opts, out, "supportsInterface", _interfaceId)
+	err := _MainnetERC721XCardsContract.contract.Call(opts, out, "supportsInterface", interfaceId)
 	return *ret0, err
 }
 
 // SupportsInterface is a free data retrieval call binding the contract method 0x01ffc9a7.
 //
-// Solidity: function supportsInterface(_interfaceId bytes4) constant returns(bool)
-func (_MainnetERC721XCardsContract *MainnetERC721XCardsContractSession) SupportsInterface(_interfaceId [4]byte) (bool, error) {
-	return _MainnetERC721XCardsContract.Contract.SupportsInterface(&_MainnetERC721XCardsContract.CallOpts, _interfaceId)
+// Solidity: function supportsInterface(interfaceId bytes4) constant returns(bool)
+func (_MainnetERC721XCardsContract *MainnetERC721XCardsContractSession) SupportsInterface(interfaceId [4]byte) (bool, error) {
+	return _MainnetERC721XCardsContract.Contract.SupportsInterface(&_MainnetERC721XCardsContract.CallOpts, interfaceId)
 }
 
 // SupportsInterface is a free data retrieval call binding the contract method 0x01ffc9a7.
 //
-// Solidity: function supportsInterface(_interfaceId bytes4) constant returns(bool)
-func (_MainnetERC721XCardsContract *MainnetERC721XCardsContractCallerSession) SupportsInterface(_interfaceId [4]byte) (bool, error) {
-	return _MainnetERC721XCardsContract.Contract.SupportsInterface(&_MainnetERC721XCardsContract.CallOpts, _interfaceId)
+// Solidity: function supportsInterface(interfaceId bytes4) constant returns(bool)
+func (_MainnetERC721XCardsContract *MainnetERC721XCardsContractCallerSession) SupportsInterface(interfaceId [4]byte) (bool, error) {
+	return _MainnetERC721XCardsContract.Contract.SupportsInterface(&_MainnetERC721XCardsContract.CallOpts, interfaceId)
 }
 
 // Symbol is a free data retrieval call binding the contract method 0x95d89b41.
@@ -580,7 +567,7 @@ func (_MainnetERC721XCardsContract *MainnetERC721XCardsContractCallerSession) To
 
 // TokenURI is a free data retrieval call binding the contract method 0xc87b56dd.
 //
-// Solidity: function tokenURI(_tokenId uint256) constant returns(tokenUri string)
+// Solidity: function tokenURI(_tokenId uint256) constant returns(string)
 func (_MainnetERC721XCardsContract *MainnetERC721XCardsContractCaller) TokenURI(opts *bind.CallOpts, _tokenId *big.Int) (string, error) {
 	var (
 		ret0 = new(string)
@@ -592,14 +579,14 @@ func (_MainnetERC721XCardsContract *MainnetERC721XCardsContractCaller) TokenURI(
 
 // TokenURI is a free data retrieval call binding the contract method 0xc87b56dd.
 //
-// Solidity: function tokenURI(_tokenId uint256) constant returns(tokenUri string)
+// Solidity: function tokenURI(_tokenId uint256) constant returns(string)
 func (_MainnetERC721XCardsContract *MainnetERC721XCardsContractSession) TokenURI(_tokenId *big.Int) (string, error) {
 	return _MainnetERC721XCardsContract.Contract.TokenURI(&_MainnetERC721XCardsContract.CallOpts, _tokenId)
 }
 
 // TokenURI is a free data retrieval call binding the contract method 0xc87b56dd.
 //
-// Solidity: function tokenURI(_tokenId uint256) constant returns(tokenUri string)
+// Solidity: function tokenURI(_tokenId uint256) constant returns(string)
 func (_MainnetERC721XCardsContract *MainnetERC721XCardsContractCallerSession) TokenURI(_tokenId *big.Int) (string, error) {
 	return _MainnetERC721XCardsContract.Contract.TokenURI(&_MainnetERC721XCardsContract.CallOpts, _tokenId)
 }
@@ -995,23 +982,23 @@ type MainnetERC721XCardsContractApproval struct {
 
 // FilterApproval is a free log retrieval operation binding the contract event 0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925.
 //
-// Solidity: e Approval(_owner indexed address, _approved indexed address, _tokenId indexed uint256)
-func (_MainnetERC721XCardsContract *MainnetERC721XCardsContractFilterer) FilterApproval(opts *bind.FilterOpts, _owner []common.Address, _approved []common.Address, _tokenId []*big.Int) (*MainnetERC721XCardsContractApprovalIterator, error) {
+// Solidity: e Approval(owner indexed address, approved indexed address, tokenId indexed uint256)
+func (_MainnetERC721XCardsContract *MainnetERC721XCardsContractFilterer) FilterApproval(opts *bind.FilterOpts, owner []common.Address, approved []common.Address, tokenId []*big.Int) (*MainnetERC721XCardsContractApprovalIterator, error) {
 
-	var _ownerRule []interface{}
-	for _, _ownerItem := range _owner {
-		_ownerRule = append(_ownerRule, _ownerItem)
+	var ownerRule []interface{}
+	for _, ownerItem := range owner {
+		ownerRule = append(ownerRule, ownerItem)
 	}
-	var _approvedRule []interface{}
-	for _, _approvedItem := range _approved {
-		_approvedRule = append(_approvedRule, _approvedItem)
+	var approvedRule []interface{}
+	for _, approvedItem := range approved {
+		approvedRule = append(approvedRule, approvedItem)
 	}
-	var _tokenIdRule []interface{}
-	for _, _tokenIdItem := range _tokenId {
-		_tokenIdRule = append(_tokenIdRule, _tokenIdItem)
+	var tokenIdRule []interface{}
+	for _, tokenIdItem := range tokenId {
+		tokenIdRule = append(tokenIdRule, tokenIdItem)
 	}
 
-	logs, sub, err := _MainnetERC721XCardsContract.contract.FilterLogs(opts, "Approval", _ownerRule, _approvedRule, _tokenIdRule)
+	logs, sub, err := _MainnetERC721XCardsContract.contract.FilterLogs(opts, "Approval", ownerRule, approvedRule, tokenIdRule)
 	if err != nil {
 		return nil, err
 	}
@@ -1020,23 +1007,23 @@ func (_MainnetERC721XCardsContract *MainnetERC721XCardsContractFilterer) FilterA
 
 // WatchApproval is a free log subscription operation binding the contract event 0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925.
 //
-// Solidity: e Approval(_owner indexed address, _approved indexed address, _tokenId indexed uint256)
-func (_MainnetERC721XCardsContract *MainnetERC721XCardsContractFilterer) WatchApproval(opts *bind.WatchOpts, sink chan<- *MainnetERC721XCardsContractApproval, _owner []common.Address, _approved []common.Address, _tokenId []*big.Int) (event.Subscription, error) {
+// Solidity: e Approval(owner indexed address, approved indexed address, tokenId indexed uint256)
+func (_MainnetERC721XCardsContract *MainnetERC721XCardsContractFilterer) WatchApproval(opts *bind.WatchOpts, sink chan<- *MainnetERC721XCardsContractApproval, owner []common.Address, approved []common.Address, tokenId []*big.Int) (event.Subscription, error) {
 
-	var _ownerRule []interface{}
-	for _, _ownerItem := range _owner {
-		_ownerRule = append(_ownerRule, _ownerItem)
+	var ownerRule []interface{}
+	for _, ownerItem := range owner {
+		ownerRule = append(ownerRule, ownerItem)
 	}
-	var _approvedRule []interface{}
-	for _, _approvedItem := range _approved {
-		_approvedRule = append(_approvedRule, _approvedItem)
+	var approvedRule []interface{}
+	for _, approvedItem := range approved {
+		approvedRule = append(approvedRule, approvedItem)
 	}
-	var _tokenIdRule []interface{}
-	for _, _tokenIdItem := range _tokenId {
-		_tokenIdRule = append(_tokenIdRule, _tokenIdItem)
+	var tokenIdRule []interface{}
+	for _, tokenIdItem := range tokenId {
+		tokenIdRule = append(tokenIdRule, tokenIdItem)
 	}
 
-	logs, sub, err := _MainnetERC721XCardsContract.contract.WatchLogs(opts, "Approval", _ownerRule, _approvedRule, _tokenIdRule)
+	logs, sub, err := _MainnetERC721XCardsContract.contract.WatchLogs(opts, "Approval", ownerRule, approvedRule, tokenIdRule)
 	if err != nil {
 		return nil, err
 	}
@@ -1145,19 +1132,19 @@ type MainnetERC721XCardsContractApprovalForAll struct {
 
 // FilterApprovalForAll is a free log retrieval operation binding the contract event 0x17307eab39ab6107e8899845ad3d59bd9653f200f220920489ca2b5937696c31.
 //
-// Solidity: e ApprovalForAll(_owner indexed address, _operator indexed address, _approved bool)
-func (_MainnetERC721XCardsContract *MainnetERC721XCardsContractFilterer) FilterApprovalForAll(opts *bind.FilterOpts, _owner []common.Address, _operator []common.Address) (*MainnetERC721XCardsContractApprovalForAllIterator, error) {
+// Solidity: e ApprovalForAll(owner indexed address, operator indexed address, approved bool)
+func (_MainnetERC721XCardsContract *MainnetERC721XCardsContractFilterer) FilterApprovalForAll(opts *bind.FilterOpts, owner []common.Address, operator []common.Address) (*MainnetERC721XCardsContractApprovalForAllIterator, error) {
 
-	var _ownerRule []interface{}
-	for _, _ownerItem := range _owner {
-		_ownerRule = append(_ownerRule, _ownerItem)
+	var ownerRule []interface{}
+	for _, ownerItem := range owner {
+		ownerRule = append(ownerRule, ownerItem)
 	}
-	var _operatorRule []interface{}
-	for _, _operatorItem := range _operator {
-		_operatorRule = append(_operatorRule, _operatorItem)
+	var operatorRule []interface{}
+	for _, operatorItem := range operator {
+		operatorRule = append(operatorRule, operatorItem)
 	}
 
-	logs, sub, err := _MainnetERC721XCardsContract.contract.FilterLogs(opts, "ApprovalForAll", _ownerRule, _operatorRule)
+	logs, sub, err := _MainnetERC721XCardsContract.contract.FilterLogs(opts, "ApprovalForAll", ownerRule, operatorRule)
 	if err != nil {
 		return nil, err
 	}
@@ -1166,19 +1153,19 @@ func (_MainnetERC721XCardsContract *MainnetERC721XCardsContractFilterer) FilterA
 
 // WatchApprovalForAll is a free log subscription operation binding the contract event 0x17307eab39ab6107e8899845ad3d59bd9653f200f220920489ca2b5937696c31.
 //
-// Solidity: e ApprovalForAll(_owner indexed address, _operator indexed address, _approved bool)
-func (_MainnetERC721XCardsContract *MainnetERC721XCardsContractFilterer) WatchApprovalForAll(opts *bind.WatchOpts, sink chan<- *MainnetERC721XCardsContractApprovalForAll, _owner []common.Address, _operator []common.Address) (event.Subscription, error) {
+// Solidity: e ApprovalForAll(owner indexed address, operator indexed address, approved bool)
+func (_MainnetERC721XCardsContract *MainnetERC721XCardsContractFilterer) WatchApprovalForAll(opts *bind.WatchOpts, sink chan<- *MainnetERC721XCardsContractApprovalForAll, owner []common.Address, operator []common.Address) (event.Subscription, error) {
 
-	var _ownerRule []interface{}
-	for _, _ownerItem := range _owner {
-		_ownerRule = append(_ownerRule, _ownerItem)
+	var ownerRule []interface{}
+	for _, ownerItem := range owner {
+		ownerRule = append(ownerRule, ownerItem)
 	}
-	var _operatorRule []interface{}
-	for _, _operatorItem := range _operator {
-		_operatorRule = append(_operatorRule, _operatorItem)
+	var operatorRule []interface{}
+	for _, operatorItem := range operator {
+		operatorRule = append(operatorRule, operatorItem)
 	}
 
-	logs, sub, err := _MainnetERC721XCardsContract.contract.WatchLogs(opts, "ApprovalForAll", _ownerRule, _operatorRule)
+	logs, sub, err := _MainnetERC721XCardsContract.contract.WatchLogs(opts, "ApprovalForAll", ownerRule, operatorRule)
 	if err != nil {
 		return nil, err
 	}
@@ -1412,23 +1399,23 @@ type MainnetERC721XCardsContractTransfer struct {
 
 // FilterTransfer is a free log retrieval operation binding the contract event 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef.
 //
-// Solidity: e Transfer(_from indexed address, _to indexed address, _tokenId indexed uint256)
-func (_MainnetERC721XCardsContract *MainnetERC721XCardsContractFilterer) FilterTransfer(opts *bind.FilterOpts, _from []common.Address, _to []common.Address, _tokenId []*big.Int) (*MainnetERC721XCardsContractTransferIterator, error) {
+// Solidity: e Transfer(from indexed address, to indexed address, tokenId indexed uint256)
+func (_MainnetERC721XCardsContract *MainnetERC721XCardsContractFilterer) FilterTransfer(opts *bind.FilterOpts, from []common.Address, to []common.Address, tokenId []*big.Int) (*MainnetERC721XCardsContractTransferIterator, error) {
 
-	var _fromRule []interface{}
-	for _, _fromItem := range _from {
-		_fromRule = append(_fromRule, _fromItem)
+	var fromRule []interface{}
+	for _, fromItem := range from {
+		fromRule = append(fromRule, fromItem)
 	}
-	var _toRule []interface{}
-	for _, _toItem := range _to {
-		_toRule = append(_toRule, _toItem)
+	var toRule []interface{}
+	for _, toItem := range to {
+		toRule = append(toRule, toItem)
 	}
-	var _tokenIdRule []interface{}
-	for _, _tokenIdItem := range _tokenId {
-		_tokenIdRule = append(_tokenIdRule, _tokenIdItem)
+	var tokenIdRule []interface{}
+	for _, tokenIdItem := range tokenId {
+		tokenIdRule = append(tokenIdRule, tokenIdItem)
 	}
 
-	logs, sub, err := _MainnetERC721XCardsContract.contract.FilterLogs(opts, "Transfer", _fromRule, _toRule, _tokenIdRule)
+	logs, sub, err := _MainnetERC721XCardsContract.contract.FilterLogs(opts, "Transfer", fromRule, toRule, tokenIdRule)
 	if err != nil {
 		return nil, err
 	}
@@ -1437,23 +1424,23 @@ func (_MainnetERC721XCardsContract *MainnetERC721XCardsContractFilterer) FilterT
 
 // WatchTransfer is a free log subscription operation binding the contract event 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef.
 //
-// Solidity: e Transfer(_from indexed address, _to indexed address, _tokenId indexed uint256)
-func (_MainnetERC721XCardsContract *MainnetERC721XCardsContractFilterer) WatchTransfer(opts *bind.WatchOpts, sink chan<- *MainnetERC721XCardsContractTransfer, _from []common.Address, _to []common.Address, _tokenId []*big.Int) (event.Subscription, error) {
+// Solidity: e Transfer(from indexed address, to indexed address, tokenId indexed uint256)
+func (_MainnetERC721XCardsContract *MainnetERC721XCardsContractFilterer) WatchTransfer(opts *bind.WatchOpts, sink chan<- *MainnetERC721XCardsContractTransfer, from []common.Address, to []common.Address, tokenId []*big.Int) (event.Subscription, error) {
 
-	var _fromRule []interface{}
-	for _, _fromItem := range _from {
-		_fromRule = append(_fromRule, _fromItem)
+	var fromRule []interface{}
+	for _, fromItem := range from {
+		fromRule = append(fromRule, fromItem)
 	}
-	var _toRule []interface{}
-	for _, _toItem := range _to {
-		_toRule = append(_toRule, _toItem)
+	var toRule []interface{}
+	for _, toItem := range to {
+		toRule = append(toRule, toItem)
 	}
-	var _tokenIdRule []interface{}
-	for _, _tokenIdItem := range _tokenId {
-		_tokenIdRule = append(_tokenIdRule, _tokenIdItem)
+	var tokenIdRule []interface{}
+	for _, tokenIdItem := range tokenId {
+		tokenIdRule = append(tokenIdRule, tokenIdItem)
 	}
 
-	logs, sub, err := _MainnetERC721XCardsContract.contract.WatchLogs(opts, "Transfer", _fromRule, _toRule, _tokenIdRule)
+	logs, sub, err := _MainnetERC721XCardsContract.contract.WatchLogs(opts, "Transfer", fromRule, toRule, tokenIdRule)
 	if err != nil {
 		return nil, err
 	}

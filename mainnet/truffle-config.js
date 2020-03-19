@@ -1,6 +1,3 @@
-require('babel-register');
-require('babel-polyfill');
-
 const fs = require('fs');
 const HDWalletProvider = require('truffle-hdwallet-provider');
 
@@ -75,13 +72,18 @@ module.exports = {
             network_id: 1,
             skipDryRun: true
         }
-  },
-  build: {},
-  mocha,
-  solc: {
-    optimizer: {
-      enabled: true,
-      runs: 200
+    },
+    build: {},
+    mocha,
+    solc: {
+        optimizer: {
+            enabled: true,
+            runs: 200
+        }
+    },
+    compilers: {
+        solc: {
+            version: "0.5.7"
+        }
     }
-  },
 }

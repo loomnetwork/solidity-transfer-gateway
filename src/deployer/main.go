@@ -4,20 +4,21 @@ import (
 	"client"
 	"fmt"
 	"gateway"
+	"math/big"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
 	loom_client "github.com/loomnetwork/go-loom/client"
 	"github.com/loomnetwork/go-loom/client/erc20"
 	"github.com/loomnetwork/go-loom/client/erc721"
 	"github.com/loomnetwork/go-loom/client/erc721x"
-	gw "github.com/loomnetwork/go-loom/client/gateway"
+	gw "github.com/loomnetwork/go-loom/client/gateway_v2"
+	vmc "github.com/loomnetwork/go-loom/client/validator_manager"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -103,16 +104,28 @@ func deploy(cmd *cobra.Command, args []string) error {
 			return errors.Wrap(err, "failed to connect to Ethereum network")
 		}
 
-		keyStr := gateway.GetTestAccountKey("oracle_eth")
-		oracleEthKey, err := crypto.HexToECDSA(strings.TrimPrefix(keyStr, "0x"))
-		if err != nil {
-			return errors.Wrap(err, "failed to load Oracle Ethereum private key")
-		}
-
 		mainnetGatewayAddr := gateway.GetMainnetContractCfgString("mainnet_gateway_addr")
-		mainnetGateway, err := client.ConnectToMainnetGateway(ethClient, mainnetGatewayAddr)
+		mainnetGateway, err := gw.ConnectToMainnetGateway(ethClient, mainnetGatewayAddr)
 		if err != nil {
 			return errors.Wrap(err, "failed to connect to Gateway on Ethereum network")
+		}
+
+		// Get Validator key
+		ethKey, dappchainKey = gateway.GetKeys("oracle")
+		val, err := loom_client.CreateIdentityStr(ethKey, dappchainKey, loomCfg.ChainID)
+		if err != nil {
+			return errors.Wrap(err, "failed to create identity for validator")
+		}
+
+		mainnetVmcAddr := gateway.GetMainnetContractCfgString("mainnet_validatorManagerContract_addr")
+		vmc, err := vmc.ConnectToMainnetVMCClient(ethClient, mainnetVmcAddr)
+		if err != nil {
+			return errors.Wrap(err, "failed to connect to Validator Manager Contract on Ethereum network")
+		}
+
+		ind := big.NewInt(0)
+		if err := vmc.ToggleAllowAnyToken(val, true, ind); err != nil {
+			return errors.Wrap(err, "failed to allow all tokens on VMC")
 		}
 
 		if ethereumContractsToDeploy["CryptoCards"] {
@@ -123,10 +136,6 @@ func deploy(cmd *cobra.Command, args []string) error {
 
 			deploymentInfo.Set("mainnet_crypto_cards_addr", contract.Address)
 			deploymentInfo.Set("mainnet_crypto_cards_tx", contract.TxHash)
-
-			if err := mainnetGateway.ToggleToken(oracleEthKey, contract.Address); err != nil {
-				return errors.Wrap(err, "failed to register CryptoCards contract with Gateway")
-			}
 		}
 
 		if ethereumContractsToDeploy["ERC721XCards"] {
@@ -137,10 +146,6 @@ func deploy(cmd *cobra.Command, args []string) error {
 
 			deploymentInfo.Set("mainnet_erc721x_cards_addr", contract.Address)
 			deploymentInfo.Set("mainnet_erc721x_cards_tx", contract.TxHash)
-
-			if err := mainnetGateway.ToggleToken(oracleEthKey, contract.Address); err != nil {
-				return errors.Wrap(err, "failed to register ERC721XCards contract with Gateway")
-			}
 		}
 
 		if ethereumContractsToDeploy["GameToken"] {
@@ -151,10 +156,6 @@ func deploy(cmd *cobra.Command, args []string) error {
 
 			deploymentInfo.Set("mainnet_game_token_addr", contract.Address)
 			deploymentInfo.Set("mainnet_game_token_tx", contract.TxHash)
-
-			if err := mainnetGateway.ToggleToken(oracleEthKey, contract.Address); err != nil {
-				return errors.Wrap(err, "failed to register GameToken contract with Gateway")
-			}
 		}
 	}
 
@@ -221,7 +222,6 @@ func mapContracts(cmd *cobra.Command, args []string) error {
 	}
 
 	ethKey, dappchainKey := gateway.GetKeys("dan")
-
 	erc721Creator, err := loom_client.CreateIdentityStr(ethKey, dappchainKey, loomCfg.ChainID)
 	if err != nil {
 		return errors.Wrap(err, "failed to create identity")

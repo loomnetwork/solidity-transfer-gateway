@@ -7,19 +7,14 @@ import (
 	"math/big"
 	"os"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
-	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
 	loom_client "github.com/loomnetwork/go-loom/client"
 
-	"github.com/loomnetwork/go-loom/common/evmcompat"
-	ssha "github.com/miguelmota/go-solidity-sha3"
 	"github.com/stretchr/testify/suite"
 
 	// Contract bindings
@@ -28,8 +23,9 @@ import (
 	"github.com/loomnetwork/go-loom/client/erc721"
 	"github.com/loomnetwork/go-loom/client/erc721x"
 	"github.com/loomnetwork/go-loom/client/evm_eth"
-	gw "github.com/loomnetwork/go-loom/client/gateway"
+	gw "github.com/loomnetwork/go-loom/client/gateway_v2"
 	"github.com/loomnetwork/go-loom/client/native_coin"
+	vmc "github.com/loomnetwork/go-loom/client/validator_manager"
 )
 
 type TransferGatewayTestSuite struct {
@@ -43,8 +39,9 @@ type TransferGatewayTestSuite struct {
 	addressMapper                *am.DAppChainAddressMapper
 	dappchainGateway             *gw.DAppChainGateway
 	dappchainLoomGateway         *gw.DAppChainGateway
-	mainnetGateway               *client.MainnetGatewayClient
-	mainnetLoomGateway           *client.MainnetGatewayClient
+	validatorsManager            *vmc.MainnetVMCClient
+	mainnetGateway               *gw.MainnetGatewayClient
+	mainnetLoomGateway           *gw.MainnetGatewayClient
 	mainnetCards                 *client.MainnetCryptoCardsClient
 	mainnetERC721X               *client.MainnetERC721XContract
 	mainnetCoin                  *client.MainnetERC20Contract
@@ -80,7 +77,7 @@ func (s *TransferGatewayTestSuite) SetupSuite() {
 	require := s.Require()
 	require.NotEmpty(os.Getenv("LOOM_DIR"), "LOOM_DIR env var should be set to dir containing loom.yml")
 	var err error
-	s.oracleWaitTime = time.Duration(5) * time.Second
+	s.oracleWaitTime = time.Duration(10) * time.Second
 	if os.Getenv("ORACLE_WAIT_TIME") != "" {
 		secs, err := strconv.ParseInt(os.Getenv("ORACLE_WAIT_TIME"), 10, 32)
 		require.NoError(err)
@@ -98,6 +95,8 @@ func (s *TransferGatewayTestSuite) SetupSuite() {
 	s.ethRPCClient, err = rpc.DialContext(context.Background(), loomCfg.TransferGateway.EthereumURI)
 	require.NoError(err)
 	s.ethClient = ethclient.NewClient(s.ethRPCClient)
+
+	fmt.Println(loomCfg.ChainID, loomCfg.TransferGateway.DAppChainReadURI, loomCfg.TransferGateway.DAppChainWriteURI)
 
 	s.loomClient = loom_client.NewDAppChainRPCClient(
 		loomCfg.ChainID,
@@ -132,12 +131,18 @@ func (s *TransferGatewayTestSuite) SetupSuite() {
 
 	// Connect mainnet contracts
 
+	vmcAddr := GetMainnetContractCfgString("mainnet_validatormanagercontract_addr")
+	fmt.Println(vmcAddr)
+	s.validatorsManager, err = vmc.ConnectToMainnetVMCClient(s.ethClient, vmcAddr)
+	require.NoError(err)
+
 	mainnetGatewayAddr := GetMainnetContractCfgString("mainnet_gateway_addr")
-	s.mainnetGateway, err = client.ConnectToMainnetGateway(s.ethClient, mainnetGatewayAddr)
+	fmt.Println(mainnetGatewayAddr)
+	s.mainnetGateway, err = gw.ConnectToMainnetGateway(s.ethClient, mainnetGatewayAddr)
 	require.NoError(err)
 
 	mainnetLoomGatewayAddr := GetMainnetContractCfgString("mainnet_loomgateway_addr")
-	s.mainnetLoomGateway, err = client.ConnectToMainnetGateway(s.ethClient, mainnetLoomGatewayAddr)
+	s.mainnetLoomGateway, err = gw.ConnectToMainnetGateway(s.ethClient, mainnetLoomGatewayAddr)
 	require.NoError(err)
 
 	erc721Addr := GetMainnetContractCfgString("mainnet_crypto_cards_addr")
@@ -174,8 +179,14 @@ func (s *TransferGatewayTestSuite) SetupSuite() {
 	s.bob, err = loom_client.CreateIdentityStr(ethKey, dappchainKey, s.loomClient.GetChainID())
 	require.NoError(err)
 
-	// Associate Alice's Mainnet account with her DAppChain account
-	require.NoError(s.addressMapper.AddIdentityMapping(s.alice))
+	fmt.Println(time.Now().UTC())
+	// Associate Alice's Mainnet account with her DAppChain account (only if mapping doesn't exist already, helps us run multiple e2e tests sequentially if needed)
+	exists, _ := s.addressMapper.HasIdentityMapping(s.alice.LoomAddr)
+	if !exists {
+		require.NoError(s.addressMapper.AddIdentityMapping(s.alice))
+	}
+
+	time.Sleep(10 * time.Second)
 }
 
 func (s *TransferGatewayTestSuite) mineBlock() {
@@ -196,6 +207,9 @@ func (s *TransferGatewayTestSuite) TestERC721DepositAndWithdraw() {
 	var err error
 	require := s.Require()
 	alice := s.alice
+
+	validators, err := s.validatorsManager.GetValidators()
+	require.NoError(err)
 
 	// Give Alice some ERC721 tokens on Mainnet
 	require.NoError(s.mainnetCards.MintTokens(s.cardsCreator, alice))
@@ -225,74 +239,57 @@ func (s *TransferGatewayTestSuite) TestERC721DepositAndWithdraw() {
 	// Alice must grant approval to the DAppChain Gateway to take ownership of the token when it's withdrawn
 	require.NoError(s.loomERC721.Approve(alice, s.dappchainGateway.Address, aliceTokenID))
 
-	withdrawalSignedCh := make(chan *tgtypes.TransferGatewayTokenWithdrawalSigned, 1)
-	var withdrawalSignedSub *gw.EventSub
-	if s.onGanache {
-		// TODO: Rinkeby is so slow that by the time the test gets this far the Websocket connection
-		// seems to time out, probably need to ping/pong to keep it alive.
-		withdrawalSignedSub, err = s.dappchainGateway.WatchTokenWithdrawalSigned(withdrawalSignedCh)
+	// Wait until the receipt is empty
+	for {
+		wr, err := s.dappchainGateway.WithdrawalReceipt(alice)
 		require.NoError(err)
+		if wr == nil {
+			break
+		}
+		time.Sleep(5 * time.Second)
 	}
 
 	// Now Alice can requests a withdrawal from the DAppChain Gateway...
-	require.NoError(s.dappchainGateway.WithdrawERC721(alice, aliceTokenID, s.loomERC721.Address, nil))
+	for i := 0; i < 5; i++ {
+		err = s.dappchainGateway.WithdrawERC721(alice, aliceTokenID, s.loomERC721.Address, nil)
+		if err != nil {
+			if strings.Contains(err.Error(), "TG003") {
+				time.Sleep(5 * time.Second)
+			} else {
+				require.NoError(err)
+			}
+		} else {
+			break
+		}
+	}
+	require.NoError(err)
+
 	// and receives a withdrawal receipt...
 	wr, err := s.dappchainGateway.WithdrawalReceipt(alice)
 	require.NoError(err)
 	require.NotNil(wr)
 
-	var withdrawalSigned *tgtypes.TransferGatewayTokenWithdrawalSigned
-
 	// Let the Oracle fetch pending withdrawals & sign them
-	if !s.onGanache {
-		time.Sleep(s.oracleWaitTime)
-	} else {
-		s.mineBlocksTillConfirmation()
-
-		select {
-		case withdrawalSigned = <-withdrawalSignedCh:
-			withdrawalSignedSub.Close()
-		case <-time.After(10 * time.Second):
-			require.Fail("timeout while waiting for TokenWithdrawalSigned event")
+	for {
+		wr, err = s.dappchainGateway.WithdrawalReceipt(alice)
+		if wr.OracleSignature != nil {
+			break
 		}
 
-		require.NotNil(withdrawalSigned)
+		time.Sleep(5 * time.Second)
 	}
 
-	// Verify Alice's withdrawal receipt has been signed by the Oracle
 	wr, err = s.dappchainGateway.WithdrawalReceipt(alice)
 	require.NoError(err)
 	require.NotNil(wr)
-	require.NotNil(wr.OracleSignature, "Alice's withdrawal should be signed")
-	require.Len(wr.OracleSignature, 66, "Oracle signature must be exactly 66 bytes")
-	hash := withdrawalHash(wr, s.mainnetGateway.Address)
-	signer, err := evmcompat.SolidityRecover(hash, wr.OracleSignature[1:])
-	require.NoError(err)
 
-	if os.Getenv("ENABLE_HSM") == "" {
-		oracleKeyBytes, err := hexutil.Decode(GetTestAccountKey("oracle_eth"))
-		require.NoError(err)
-		oracleKey, err := crypto.ToECDSA(oracleKeyBytes)
-		require.NoError(err)
-		oracleAddr := crypto.PubkeyToAddress(oracleKey.PublicKey)
-		require.Equal(oracleAddr.Hex(), signer.Hex())
-	} else {
-		oracleAddr := os.Getenv("HSM_ADDRESS")
-		require.Equal(oracleAddr, signer.Hex())
-	}
-
-	// Verify the event that was emitted matches the withdrawal receipt
-	if withdrawalSigned != nil {
-		require.Equal(wr.OracleSignature, withdrawalSigned.Sig)
-		require.Equal(wr.TokenOwner, withdrawalSigned.TokenOwner)
-		require.Equal(wr.TokenContract, withdrawalSigned.TokenContract)
-		require.Equal(wr.TokenKind, withdrawalSigned.TokenKind)
-		require.Equal(wr.TokenID.Value.String(), withdrawalSigned.TokenID.Value.String())
-	}
+	// Verify Alice's withdrawal receipt has been signed by enough validators
+	require.True(len(wr.OracleSignature)/65 >= 2*len(validators)/3, "Must be signed by 2/3rds validators")
 
 	// Alice can now withdraw the token from the Mainnet Gateway by presenting the signature from
 	// the withdrawal receipt
-	require.NoError(s.mainnetGateway.WithdrawERC721(alice, aliceTokenID, s.mainnetCards.Address, wr.OracleSignature))
+	require.NoError(s.mainnetGateway.WithdrawERC721(alice, aliceTokenID, s.mainnetCards.Address, wr.OracleSignature, validators))
+
 	// Alice should now have her token back on Mainnet
 	isTokenDeposited, err = s.mainnetGateway.ERC721Deposited(aliceTokenID, s.mainnetCards.Address)
 	require.NoError(err)
@@ -353,68 +350,60 @@ func (s *TransferGatewayTestSuite) TestERC721DepositTransferWithdraw() {
 	// Bob must grant approval to the DAppChain Gateway to take ownership of the token when it's withdrawn
 	require.NoError(s.loomERC721.Approve(bob, s.dappchainGateway.Address, aliceTokenID))
 
-	withdrawalSignedCh := make(chan *tgtypes.TransferGatewayTokenWithdrawalSigned, 1)
-	var withdrawalSignedSub *gw.EventSub
-	if s.onGanache {
-		// TODO: Rinkeby is so slow that by the time the test gets this far the Websocket connection
-		// seems to time out, probably need to ping/pong to keep it alive.
-		withdrawalSignedSub, err = s.dappchainGateway.WatchTokenWithdrawalSigned(withdrawalSignedCh)
+	// Wait until the receipt is empty
+	for {
+		wr, err := s.dappchainGateway.WithdrawalReceipt(bob)
 		require.NoError(err)
+		if wr == nil {
+			break
+		}
+		time.Sleep(5 * time.Second)
 	}
 
-	// Now Bob can requests a withdrawal from the DAppChain Gateway...
-	require.NoError(s.dappchainGateway.WithdrawERC721(bob, aliceTokenID, s.loomERC721.Address, &bob.MainnetAddr))
+	// Now Bob can request a withdrawal from the DAppChain Gateway...
+	for i := 0; i < 5; i++ {
+		err = s.dappchainGateway.WithdrawERC721(bob, aliceTokenID, s.loomERC721.Address, &bob.MainnetAddr)
+		if err != nil {
+			if strings.Contains(err.Error(), "TG003") {
+				time.Sleep(5 * time.Second)
+			} else {
+				require.NoError(err)
+			}
+		} else {
+			break
+		}
+	}
+	require.NoError(err)
+
 	// and receives a withdrawal receipt...
 	wr, err := s.dappchainGateway.WithdrawalReceipt(bob)
 	require.NoError(err)
 	require.NotNil(wr)
 
-	var withdrawalSigned *tgtypes.TransferGatewayTokenWithdrawalSigned
-
 	// Let the Oracle fetch pending withdrawals & sign them
-	if !s.onGanache {
-		time.Sleep(s.oracleWaitTime)
-	} else {
-		s.mineBlocksTillConfirmation()
-
-		select {
-		case withdrawalSigned = <-withdrawalSignedCh:
-			withdrawalSignedSub.Close()
-		case <-time.After(s.oracleWaitTime):
-			require.Fail("timeout while waiting for TokenWithdrawalSigned event")
+	for {
+		wr, err = s.dappchainGateway.WithdrawalReceipt(bob)
+		if wr.OracleSignature != nil {
+			break
 		}
 
-		require.NotNil(withdrawalSigned)
+		time.Sleep(5 * time.Second)
 	}
 
-	// Verify Bob's withdrawal receipt has been signed by the Oracle
+	validators, err := s.validatorsManager.GetValidators()
+	require.NoError(err)
+
 	wr, err = s.dappchainGateway.WithdrawalReceipt(bob)
 	require.NoError(err)
 	require.NotNil(wr)
-	require.NotNil(wr.OracleSignature, "Alice's withdrawal should be signed")
-	require.Len(wr.OracleSignature, 66, "Oracle signature must be exactly 66 bytes")
-	hash := withdrawalHash(wr, s.mainnetGateway.Address)
-	signer, err := evmcompat.SolidityRecover(hash, wr.OracleSignature[1:])
-	require.NoError(err)
-	oracleKeyBytes, err := hexutil.Decode(GetTestAccountKey("oracle_eth"))
-	require.NoError(err)
-	oracleKey, err := crypto.ToECDSA(oracleKeyBytes)
-	require.NoError(err)
-	oracleAddr := crypto.PubkeyToAddress(oracleKey.PublicKey)
-	require.Equal(oracleAddr.Hex(), signer.Hex())
 
-	// Verify the event that was emitted matches the withdrawal receipt
-	if withdrawalSigned != nil {
-		require.Equal(wr.OracleSignature, withdrawalSigned.Sig)
-		require.Equal(wr.TokenOwner, withdrawalSigned.TokenOwner)
-		require.Equal(wr.TokenContract, withdrawalSigned.TokenContract)
-		require.Equal(wr.TokenKind, withdrawalSigned.TokenKind)
-		require.Equal(wr.TokenID.Value.String(), withdrawalSigned.TokenID.Value.String())
-	}
+	// Verify Alice's withdrawal receipt has been signed by enough validators
+	require.True(len(wr.OracleSignature)/65 >= 2*len(validators)/3, "Must be signed by 2/3rds validators")
 
-	// Bob can now withdraw the token from the Mainnet Gateway by presenting the signature from
+	// Alice can now withdraw the token from the Mainnet Gateway by presenting the signature from
 	// the withdrawal receipt
-	require.NoError(s.mainnetGateway.WithdrawERC721(bob, aliceTokenID, s.mainnetCards.Address, wr.OracleSignature))
+	require.NoError(s.mainnetGateway.WithdrawERC721(bob, aliceTokenID, s.mainnetCards.Address, wr.OracleSignature, validators))
+
 	// Bob should now have the token Alice sent him, in his Mainnet account
 	isTokenDeposited, err = s.mainnetGateway.ERC721Deposited(aliceTokenID, s.mainnetCards.Address)
 	require.NoError(err)
@@ -482,17 +471,31 @@ func (s *TransferGatewayTestSuite) TestERC721XDepositTransferWithdraw() {
 	//       provide the ability to approve the transfer of a specific amount of a certain token ID.
 	require.NoError(s.loomERC721X.SetApprovalForAll(bob, s.dappchainGateway.Address, true))
 
-	withdrawalSignedCh := make(chan *tgtypes.TransferGatewayTokenWithdrawalSigned, 1)
-	var withdrawalSignedSub *gw.EventSub
-	if s.onGanache {
-		// TODO: Rinkeby is so slow that by the time the test gets this far the Websocket connection
-		// seems to time out, probably need to ping/pong to keep it alive.
-		withdrawalSignedSub, err = s.dappchainGateway.WatchTokenWithdrawalSigned(withdrawalSignedCh)
+	// Wait until the receipt is empty
+	for {
+		wr, err := s.dappchainGateway.WithdrawalReceipt(bob)
 		require.NoError(err)
+		if wr == nil {
+			break
+		}
+		time.Sleep(5 * time.Second)
 	}
 
 	// Now Bob can request a withdrawal from the DAppChain Gateway...
-	require.NoError(s.dappchainGateway.WithdrawERC721X(bob, tokenID, tokenAmt, s.loomERC721X.Address, &bob.MainnetAddr))
+	for i := 0; i < 5; i++ {
+		err = s.dappchainGateway.WithdrawERC721X(bob, tokenID, tokenAmt, s.loomERC721X.Address, &bob.MainnetAddr)
+		if err != nil {
+			if strings.Contains(err.Error(), "TG003") {
+				time.Sleep(5 * time.Second)
+			} else {
+				require.NoError(err)
+			}
+		} else {
+			break
+		}
+	}
+	require.NoError(err)
+
 	// and receives a withdrawal receipt...
 	wr, err := s.dappchainGateway.WithdrawalReceipt(bob)
 	require.NoError(err)
@@ -501,48 +504,33 @@ func (s *TransferGatewayTestSuite) TestERC721XDepositTransferWithdraw() {
 	// Bob revokes prior approval to ensure DAppChain Gateway can't withdraw any more tokens
 	require.NoError(s.loomERC721X.SetApprovalForAll(bob, s.dappchainGateway.Address, false))
 
-	var withdrawalSigned *tgtypes.TransferGatewayTokenWithdrawalSigned
-
 	// Let the Oracle fetch pending withdrawals & sign them
-	if !s.onGanache {
-		time.Sleep(s.oracleWaitTime)
-	} else {
-		s.mineBlocksTillConfirmation()
-
-		select {
-		case withdrawalSigned = <-withdrawalSignedCh:
-			withdrawalSignedSub.Close()
-		case <-time.After(s.oracleWaitTime):
-			require.Fail("timeout while waiting for TokenWithdrawalSigned event")
+	for {
+		wr, err = s.dappchainGateway.WithdrawalReceipt(bob)
+		if wr.OracleSignature != nil {
+			break
 		}
 
-		require.NotNil(withdrawalSigned)
+		time.Sleep(5 * time.Second)
 	}
 
-	// Verify Bob's withdrawal receipt has been signed by the Oracle
+	validators, err := s.validatorsManager.GetValidators()
+	require.NoError(err)
+
 	wr, err = s.dappchainGateway.WithdrawalReceipt(bob)
 	require.NoError(err)
 	require.NotNil(wr)
-	require.NotNil(wr.OracleSignature, "Bob's withdrawal should be signed")
 
-	// Verify the event that was emitted matches the withdrawal receipt
-	if withdrawalSigned != nil {
-		require.Equal(wr.OracleSignature, withdrawalSigned.Sig)
-		require.Equal(wr.TokenOwner, withdrawalSigned.TokenOwner)
-		require.Equal(wr.TokenContract, withdrawalSigned.TokenContract)
-		require.Equal(wr.TokenKind, withdrawalSigned.TokenKind)
-		require.Equal(wr.TokenID.Value.String(), withdrawalSigned.TokenID.Value.String())
-		require.Equal(wr.TokenAmount.Value.String(), withdrawalSigned.TokenAmount.Value.String())
-	}
+	// Verify Alice's withdrawal receipt has been signed by enough validators
+	require.True(len(wr.OracleSignature)/65 >= 2*len(validators)/3, "Must be signed by 2/3rds validators")
 
 	bobMainnetERC721XBal, err := s.mainnetERC721X.BalanceOf(bob, tokenID)
 	require.NoError(err)
 
 	// Bob can now withdraw the tokens from the Mainnet Gateway by presenting the signature from
 	// the withdrawal receipt
-	require.NoError(s.mainnetGateway.WithdrawERC721X(
-		bob, tokenID, tokenAmt, s.mainnetERC721X.Address, wr.OracleSignature,
-	))
+	require.NoError(s.mainnetGateway.WithdrawERC721X(bob, tokenID, tokenAmt, s.mainnetERC721X.Address, wr.OracleSignature, validators))
+
 	// Bob should now have the token Alice sent him, in his Mainnet account
 	curBalance, err = s.mainnetGateway.ERC721XBalance(tokenID, s.mainnetERC721X.Address)
 	require.NoError(err)
@@ -631,49 +619,46 @@ func (s *TransferGatewayTestSuite) TestLoomDepositAndWithdraw() {
 	// Alice must grant approval to the DAppChain Gateway to take ownership of the tokens when they're withdrawn
 	require.NoError(s.loomCoin.Approve(alice, s.dappchainLoomGateway.Address, tokenAmount))
 
-	withdrawalSignedCh := make(chan *tgtypes.TransferGatewayTokenWithdrawalSigned, 1)
-	var withdrawalSignedSub *gw.EventSub
-	if s.onGanache {
-		// TODO: Rinkeby is so slow that by the time the test gets this far the Websocket connection
-		// seems to time out, probably need to ping/pong to keep it alive.
-		withdrawalSignedSub, err = s.dappchainLoomGateway.WatchTokenWithdrawalSigned(withdrawalSignedCh)
-		require.NoError(err)
-	}
-
 	// Now Alice can requests a withdrawal from the DAppChain Gateway...
-	require.NoError(s.dappchainLoomGateway.WithdrawLoom(alice, tokenAmount, s.mainnetLoomCoin.Address))
-
-	var withdrawalSigned *tgtypes.TransferGatewayTokenWithdrawalSigned
+	for i := 0; i < 5; i++ {
+		err = s.dappchainLoomGateway.WithdrawLoom(alice, tokenAmount, s.mainnetLoomCoin.Address)
+		if err != nil {
+			if strings.Contains(err.Error(), "TG003") {
+				time.Sleep(5 * time.Second)
+			} else {
+				require.NoError(err)
+			}
+		} else {
+			break
+		}
+	}
+	require.NoError(err)
 
 	// Let the Oracle fetch pending withdrawals & sign them
-	if !s.onGanache {
-		time.Sleep(s.oracleWaitTime)
-	} else {
-		s.mineBlocksTillConfirmation()
-
-		select {
-		case withdrawalSigned = <-withdrawalSignedCh:
-			withdrawalSignedSub.Close()
-		case <-time.After(s.oracleWaitTime):
-			require.Fail("timeout while waiting for TokenWithdrawalSigned event")
+	wr, err := s.dappchainLoomGateway.WithdrawalReceipt(alice)
+	for {
+		wr, err = s.dappchainLoomGateway.WithdrawalReceipt(alice)
+		if wr.OracleSignature != nil {
+			break
 		}
 
-		require.NotNil(withdrawalSigned)
+		time.Sleep(5 * time.Second)
 	}
 
-	// Verify Alice's withdrawal receipt has been signed by the Oracle
-	wr, err := s.dappchainLoomGateway.WithdrawalReceipt(alice)
+	validators, err := s.validatorsManager.GetValidators()
+	require.NoError(err)
+
+	wr, err = s.dappchainLoomGateway.WithdrawalReceipt(alice)
 	require.NoError(err)
 	require.NotNil(wr)
-	require.NotNil(wr.OracleSignature, "Alice's withdrawal should be signed")
-	// Verify the event that was emitted matches the withdrawal receipt
-	if withdrawalSigned != nil {
-		require.Equal(wr.OracleSignature, withdrawalSigned.Sig)
-	}
+
+	// Verify Alice's withdrawal receipt has been signed by enough validators
+	require.True(len(wr.OracleSignature)/65 >= 2*len(validators)/3, "Must be signed by 2/3rds validators")
 
 	// Alice can now withdraw the tokens from the Mainnet Gateway by presenting the signature from
 	// the withdrawal receipt
-	require.NoError(s.mainnetLoomGateway.WithdrawERC20(alice, tokenAmount, s.mainnetLoomCoin.Address, wr.OracleSignature))
+	require.NoError(s.mainnetLoomGateway.WithdrawERC20(alice, tokenAmount, s.mainnetLoomCoin.Address, wr.OracleSignature, validators))
+
 	// Alice should now have her tokens back on Mainnet
 	curBalance, err = s.mainnetLoomGateway.ERC20Balance(s.mainnetLoomCoin.Address)
 	require.NoError(err)
@@ -745,49 +730,53 @@ func (s *TransferGatewayTestSuite) TestERC20DepositAndWithdraw() {
 	// Alice must grant approval to the DAppChain Gateway to take ownership of the tokens when they're withdrawn
 	require.NoError(s.loomERC20.Approve(alice, s.dappchainGateway.Address, tokenAmount))
 
-	withdrawalSignedCh := make(chan *tgtypes.TransferGatewayTokenWithdrawalSigned, 1)
-	var withdrawalSignedSub *gw.EventSub
-	if s.onGanache {
-		// TODO: Rinkeby is so slow that by the time the test gets this far the Websocket connection
-		// seems to time out, probably need to ping/pong to keep it alive.
-		withdrawalSignedSub, err = s.dappchainGateway.WatchTokenWithdrawalSigned(withdrawalSignedCh)
+	// Wait until the receipt is empty
+	for {
+		wr, err := s.dappchainGateway.WithdrawalReceipt(alice)
 		require.NoError(err)
+		if wr == nil {
+			break
+		}
+		time.Sleep(5 * time.Second)
 	}
 
 	// Now Alice can requests a withdrawal from the DAppChain Gateway...
-	require.NoError(s.dappchainGateway.WithdrawERC20(alice, tokenAmount, s.loomERC20.Address))
+	for i := 0; i < 5; i++ {
+		err = s.dappchainGateway.WithdrawERC20(alice, tokenAmount, s.loomERC20.Address)
+		if err != nil {
+			if strings.Contains(err.Error(), "TG003") {
+				time.Sleep(5 * time.Second)
+			} else {
+				require.NoError(err)
+			}
+		} else {
+			break
+		}
+	}
+	require.NoError(err)
 
-	var withdrawalSigned *tgtypes.TransferGatewayTokenWithdrawalSigned
-
-	// Let the Oracle fetch pending withdrawals & sign them
-	if !s.onGanache {
-		time.Sleep(s.oracleWaitTime)
-	} else {
-		s.mineBlocksTillConfirmation()
-
-		select {
-		case withdrawalSigned = <-withdrawalSignedCh:
-			withdrawalSignedSub.Close()
-		case <-time.After(s.oracleWaitTime):
-			require.Fail("timeout while waiting for TokenWithdrawalSigned event")
+	wr, err := s.dappchainGateway.WithdrawalReceipt(alice)
+	for {
+		wr, err = s.dappchainGateway.WithdrawalReceipt(alice)
+		if wr.OracleSignature != nil {
+			break
 		}
 
-		require.NotNil(withdrawalSigned)
+		time.Sleep(5 * time.Second)
 	}
 
 	// Verify Alice's withdrawal receipt has been signed by the Oracle
-	wr, err := s.dappchainGateway.WithdrawalReceipt(alice)
-	require.NoError(err)
-	require.NotNil(wr)
-	require.NotNil(wr.OracleSignature, "Alice's withdrawal should be signed")
-	// Verify the event that was emitted matches the withdrawal receipt
-	if withdrawalSigned != nil {
-		require.Equal(wr.OracleSignature, withdrawalSigned.Sig)
-	}
+	wr, err = s.dappchainGateway.WithdrawalReceipt(alice)
 
 	// Alice can now withdraw the tokens from the Mainnet Gateway by presenting the signature from
 	// the withdrawal receipt
-	require.NoError(s.mainnetGateway.WithdrawERC20(alice, tokenAmount, s.mainnetCoin.Address, wr.OracleSignature))
+	validators, err := s.validatorsManager.GetValidators()
+	require.NoError(err)
+
+	// Verify Alice's withdrawal receipt has been signed by enough validators
+	require.True(len(wr.OracleSignature)/65 >= 2*len(validators)/3, "Must be signed by 2/3rds validators")
+	require.NoError(s.mainnetGateway.WithdrawERC20(alice, tokenAmount, s.mainnetCoin.Address, wr.OracleSignature, validators))
+
 	// Alice should now have her tokens back on Mainnet
 	curBalance, err = s.mainnetGateway.ERC20Balance(s.mainnetCoin.Address)
 	require.NoError(err)
@@ -855,51 +844,58 @@ func (s *TransferGatewayTestSuite) TestETHDepositAndWithdraw() {
 	// withdraw to Mainnet
 	require.NoError(s.loomEth.Approve(alice, s.dappchainGateway.Address, ethAmount))
 
-	withdrawalSignedCh := make(chan *tgtypes.TransferGatewayTokenWithdrawalSigned, 1)
-	var withdrawalSignedSub *gw.EventSub
-	if s.onGanache {
-		// TODO: Rinkeby is so slow that by the time the test gets this far the Websocket connection
-		// seems to time out, probably need to ping/pong to keep it alive.
-		withdrawalSignedSub, err = s.dappchainGateway.WatchTokenWithdrawalSigned(withdrawalSignedCh)
+	// Wait until the receipt is empty
+	for {
+		wr, err := s.dappchainGateway.WithdrawalReceipt(alice)
 		require.NoError(err)
+		if wr == nil {
+			break
+		}
+		time.Sleep(5 * time.Second)
 	}
 
 	// Now Alice can request a withdrawal from the DAppChain Gateway...
-	require.NoError(s.dappchainGateway.WithdrawETH(alice, ethAmount, s.mainnetGateway.Address))
-
-	var withdrawalSigned *tgtypes.TransferGatewayTokenWithdrawalSigned
+	for i := 0; i < 5; i++ {
+		err = s.dappchainGateway.WithdrawETH(alice, ethAmount, s.mainnetGateway.Address)
+		if err != nil {
+			if strings.Contains(err.Error(), "TG003") {
+				time.Sleep(5 * time.Second)
+			} else {
+				require.NoError(err)
+			}
+		} else {
+			break
+		}
+	}
+	require.NoError(err)
 
 	// Let the Oracle fetch pending withdrawals & sign them
-	if !s.onGanache {
-		time.Sleep(s.oracleWaitTime)
-	} else {
-		s.mineBlocksTillConfirmation()
-
-		select {
-		case withdrawalSigned = <-withdrawalSignedCh:
-			withdrawalSignedSub.Close()
-		case <-time.After(s.oracleWaitTime):
-			require.Fail("timeout while waiting for TokenWithdrawalSigned event")
+	wr, err := s.dappchainGateway.WithdrawalReceipt(alice)
+	for {
+		wr, err = s.dappchainGateway.WithdrawalReceipt(alice)
+		if wr.OracleSignature != nil {
+			break
 		}
 
-		require.NotNil(withdrawalSigned)
+		time.Sleep(5 * time.Second)
 	}
 
-	// Verify Alice's withdrawal receipt has been signed by the Oracle
-	wr, err := s.dappchainGateway.WithdrawalReceipt(alice)
+	wr, err = s.dappchainGateway.WithdrawalReceipt(alice)
 	require.NoError(err)
 	require.NotNil(wr)
-	require.NotNil(wr.OracleSignature, "Alice's withdrawal should be signed")
-	// Verify the event that was emitted matches the withdrawal receipt
-	if withdrawalSigned != nil {
-		require.Equal(wr.OracleSignature, withdrawalSigned.Sig)
-	}
+
+	validators, err := s.validatorsManager.GetValidators()
+	require.NoError(err)
+
+	// Verify Alice's withdrawal receipt has been signed by enough validators
+	require.True(len(wr.OracleSignature)/65 >= 2*len(validators)/3, "Must be signed by 2/3rds validators")
 
 	aliceMainnetEthBal, err := s.ethClient.BalanceAt(context.TODO(), alice.MainnetAddr, nil)
 	require.NoError(err)
+
 	// Alice can now withdraw the ETH from the Mainnet Gateway by presenting the signature from
 	// the withdrawal receipt
-	txFee, err = s.mainnetGateway.WithdrawETH(alice, ethAmount, wr.OracleSignature)
+	txFee, err = s.mainnetGateway.WithdrawETH(alice, ethAmount, wr.OracleSignature, validators)
 	require.NoError(err)
 	// Alice should now have her ETH back on Mainnet
 	curBalance, err = s.mainnetGateway.ETHBalance()
@@ -1034,51 +1030,62 @@ func (s *TransferGatewayTestSuite) TestETHDepositAndWithdrawWithEVM() {
 	// withdraw to Mainnet
 	require.NoError(s.loomEth.Approve(alice, s.dappchainGateway.Address, ethAmount))
 
-	withdrawalSignedCh := make(chan *tgtypes.TransferGatewayTokenWithdrawalSigned, 1)
-	var withdrawalSignedSub *gw.EventSub
-	if s.onGanache {
-		// TODO: Rinkeby is so slow that by the time the test gets this far the Websocket connection
-		// seems to time out, probably need to ping/pong to keep it alive.
-		withdrawalSignedSub, err = s.dappchainGateway.WatchTokenWithdrawalSigned(withdrawalSignedCh)
+	// Wait until the receipt is empty
+	for {
+		wr, err := s.dappchainGateway.WithdrawalReceipt(alice)
 		require.NoError(err)
+		if wr == nil {
+			break
+		}
+		time.Sleep(5 * time.Second)
 	}
 
 	// Now Alice can request a withdrawal from the DAppChain Gateway...
-	require.NoError(s.dappchainGateway.WithdrawETH(alice, ethAmount, s.mainnetGateway.Address))
-
-	var withdrawalSigned *tgtypes.TransferGatewayTokenWithdrawalSigned
-
-	// Let the Oracle fetch pending withdrawals & sign them
-	if !s.onGanache {
-		time.Sleep(s.oracleWaitTime)
-	} else {
-		s.mineBlocksTillConfirmation()
-
-		select {
-		case withdrawalSigned = <-withdrawalSignedCh:
-			withdrawalSignedSub.Close()
-		case <-time.After(s.oracleWaitTime):
-			require.Fail("timeout while waiting for TokenWithdrawalSigned event")
+	for i := 0; i < 5; i++ {
+		err = s.dappchainGateway.WithdrawETH(alice, ethAmount, s.mainnetGateway.Address)
+		if err != nil {
+			if strings.Contains(err.Error(), "TG003") {
+				time.Sleep(5 * time.Second)
+			} else {
+				require.NoError(err)
+			}
+		} else {
+			break
 		}
-
-		require.NotNil(withdrawalSigned)
 	}
+	require.NoError(err)
 
-	// Verify Alice's withdrawal receipt has been signed by the Oracle
+	// and receives a withdrawal receipt...
 	wr, err := s.dappchainGateway.WithdrawalReceipt(alice)
 	require.NoError(err)
 	require.NotNil(wr)
-	require.NotNil(wr.OracleSignature, "Alice's withdrawal should be signed")
-	// Verify the event that was emitted matches the withdrawal receipt
-	if withdrawalSigned != nil {
-		require.Equal(wr.OracleSignature, withdrawalSigned.Sig)
+
+	// Let the Oracle fetch pending withdrawals & sign them
+	for {
+		wr, err = s.dappchainGateway.WithdrawalReceipt(alice)
+		if wr.OracleSignature != nil {
+			break
+		}
+
+		time.Sleep(5 * time.Second)
 	}
+
+	wr, err = s.dappchainGateway.WithdrawalReceipt(alice)
+	require.NoError(err)
+	require.NotNil(wr)
+
+	validators, err := s.validatorsManager.GetValidators()
+	require.NoError(err)
+
+	// Verify Alice's withdrawal receipt has been signed by enough validators
+	require.True(len(wr.OracleSignature)/65 >= 2*len(validators)/3, "Must be signed by 2/3rds validators")
 
 	aliceMainnetEthBal, err := s.ethClient.BalanceAt(context.TODO(), alice.MainnetAddr, nil)
 	require.NoError(err)
+
 	// Alice can now withdraw the ETH from the Mainnet Gateway by presenting the signature from
 	// the withdrawal receipt
-	txFee, err = s.mainnetGateway.WithdrawETH(alice, ethAmount, wr.OracleSignature)
+	txFee, err = s.mainnetGateway.WithdrawETH(alice, ethAmount, wr.OracleSignature, validators)
 	require.NoError(err)
 	// Alice should now have her ETH back on Mainnet
 	curBalance, err = s.mainnetGateway.ETHBalance()
@@ -1114,38 +1121,4 @@ func sciNot(m int64) *big.Int {
 func amountAsString(m *big.Int) string {
 	n := int64(18)
 	return new(big.Rat).SetFrac(m, new(big.Int).Exp(big.NewInt(10), big.NewInt(n), nil)).FloatString(4)
-}
-
-func withdrawalHash(receipt *tgtypes.TransferGatewayWithdrawalReceipt, mainnetGatewayAddr common.Address) []byte {
-	var hash []byte
-	switch receipt.TokenKind {
-	case tgtypes.TransferGatewayTokenKind_ERC721:
-		hash = ssha.SoliditySHA3(
-			ssha.Uint256(receipt.TokenID.Value.Int),
-			ssha.Address(common.BytesToAddress(receipt.TokenContract.Local)),
-		)
-	case tgtypes.TransferGatewayTokenKind_ERC721X:
-		hash = ssha.SoliditySHA3(
-			ssha.Uint256(receipt.TokenID.Value.Int),
-			ssha.Uint256(receipt.TokenAmount.Value.Int),
-			ssha.Address(common.BytesToAddress(receipt.TokenContract.Local)),
-		)
-	case tgtypes.TransferGatewayTokenKind_ERC20:
-		hash = ssha.SoliditySHA3(
-			ssha.Uint256(receipt.TokenAmount.Value.Int),
-			ssha.Address(common.BytesToAddress(receipt.TokenContract.Local)),
-		)
-	case tgtypes.TransferGatewayTokenKind_ETH:
-		hash = ssha.SoliditySHA3(ssha.Uint256(receipt.TokenAmount.Value.Int))
-	default:
-		return nil
-	}
-
-	return ssha.SoliditySHA3(
-		ssha.Address(common.BytesToAddress(receipt.TokenOwner.Local)),
-		ssha.Uint256(new(big.Int).SetUint64(receipt.WithdrawalNonce)),
-		ssha.Address(mainnetGatewayAddr),
-		hash,
-	)
-
 }

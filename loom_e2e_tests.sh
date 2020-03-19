@@ -26,8 +26,7 @@
 set -exo pipefail
 
 # Loom build to use for tests when running on Jenkins, this build will be automatically downloaded.
-# BUILD_NUMBER=build-908
-BUILD_NUMBER=master
+BUILD_NUMBER=build-1034
 
 # These can be toggled via the options below, only useful when running the script locally.
 DOWNLOAD_LOOM=false
@@ -91,17 +90,44 @@ echo "Removing LOOM_DIR on exit? $REMOVE_LOOM_DIR"
 function start_chains {
     if [[ "$LAUNCH_GANACHE" == true ]]; then
         cd $REPO_ROOT/mainnet
-        yarn run migrate:dev
+        if (( DAPPCHAIN_NODE_COUNT > 1 )); then
+            SECRET=$REPO_ROOT/e2e_config/local_ganache/decentralized_validators/vmc_accounts.json
+        else
+            SECRET=$REPO_ROOT/e2e_config/local_ganache/centralized_vmc.json
+        fi
+        SECRET_FILE=$SECRET yarn run migrate:dev
         sleep 1
         ganache_pid=`cat ganache.pid`
         echo 'Launched ganache' $ganache_pid
     fi
 
+    if [[ "$INIT_DAPPCHAIN" == true ]]; then
+        init_dappchain
+    else
+        cp $E2E_CONFIG_DIR/loom.yml $LOOM_DIR/loom.yml
+    fi
     if [[ "$LAUNCH_DAPPCHAIN" == true ]]; then
         cd $LOOM_DIR
         if (( DAPPCHAIN_NODE_COUNT > 1 )); then
             $LOOM_VALIDATORS_TOOL run --conf cluster/runner.toml > cluster.log 2>&1 &
             loom_pid=$!
+            sleep 10
+            NODE_RPC_ADDR=`cat cluster/0/node_rpc_addr`
+            NODE_RPC_ADDR="http://"${NODE_RPC_ADDR}
+            VALIDATOR_PUBKEYS=$LOOM_DIR/pubkeys
+            rm -f $VALIDATOR_PUBKEYS
+            for (( i=0; i<$DAPPCHAIN_NODE_COUNT; i++ ))
+                do
+                    echo "Mapping validator" $i
+                    cat cluster/$i/node_privkey
+                    cat cluster/$i/oracle_eth_priv.key
+                    $LOOM_BIN gateway map-accounts  --key cluster/$i/node_privkey --eth-key cluster/$i/oracle_eth_priv.key -u ${NODE_RPC_ADDR} --silent
+                    # Create the file with the validator pubkeys
+                    cat cluster/$i/chaindata/config/priv_validator.json | jq ''{pub_key}'' | jq -r '.[] | .value' >> $VALIDATOR_PUBKEYS
+                done 
+            # set the trusted validators for each gateway with the owner key
+            $LOOM_BIN gateway update-trusted-validators $VALIDATOR_PUBKEYS gateway --key $E2E_CONFIG_DIR/gateway_owner_priv.key -u ${NODE_RPC_ADDR}
+            $LOOM_BIN gateway update-trusted-validators $VALIDATOR_PUBKEYS loomcoin-gateway  --key $E2E_CONFIG_DIR/gateway_owner_priv.key -u ${NODE_RPC_ADDR}
         else
             $LOOM_BIN run > loom.log 2>&1 &
             loom_pid=$!
@@ -183,16 +209,35 @@ function init_dappchain {
         --contract-dir "" \
         --name cluster \
         --loom-path $LOOM_BIN \
-        --log-app-db
+        --log-app-db \
+        --validators $DAPPCHAIN_NODE_COUNT
 
         # Override the loom.yaml used by the TG Oracle/tests to connect to the first node.
         NODE_RPC_ADDR=`cat cluster/0/node_rpc_addr`
         sed -i "s/DAppChainReadURI\s*:.*$/DAppChainReadURI: http:\/\/${NODE_RPC_ADDR}\/query/m;\
         s/DAppChainWriteURI\s*:.*$/DAppChainWriteURI: http:\/\/${NODE_RPC_ADDR}\/rpc/m;\
         s/DAppChainEventsURI\s*:.*$/DAppChainEventsURI: ws:\/\/${NODE_RPC_ADDR}\/queryws/m" $LOOM_DIR/loom.yml
+        # Set gateways
+        MainnetGatewayAddress=`cat $E2E_CONFIG_DIR/contracts.yml | grep mainnet_gateway_addr  | awk '{print $2}'`
+        awk -v mainnetGateway=$MainnetGatewayAddress -v n=1 "/MainnetContractHexAddress.*/ { if (++count == n) sub(/MainnetContractHexAddress.*/, \"MainnetContractHexAddress: \"mainnetGateway\"\");   } 1" $LOOM_DIR/loom.yml > $LOOM_DIR/loom.yml.tmp && mv $LOOM_DIR/loom.yml.tmp $LOOM_DIR/loom.yml
+        MainnetLoomGatewayAddress=`cat $E2E_CONFIG_DIR/contracts.yml | grep mainnet_loomGateway_addr  | awk '{print $2}'`
+        awk -v mainnetGateway=$MainnetLoomGatewayAddress -v n=2 "/MainnetContractHexAddress.*/ { if (++count == n) sub(/MainnetContractHexAddress.*/, \"MainnetContractHexAddress: \"mainnetGateway\"\");   } 1" $LOOM_DIR/loom.yml > $LOOM_DIR/loom.yml.tmp && mv $LOOM_DIR/loom.yml.tmp $LOOM_DIR/loom.yml
+        for (( i=0; i<$DAPPCHAIN_NODE_COUNT; i++ ))
+            do
+                cp $E2E_CONFIG_DIR/decentralized_validators/validator_$i cluster/$i/oracle_eth_priv.key
+        done
     else
         $LOOM_BIN init -f
         cp $GENESIS_JSON ./genesis.json
+        # Copy over our validator's private/public key
+        EXTRACTION_PATTERN="{pub_key}"
+        cat $LOOM_DIR/chaindata/config/priv_validator.json | jq $EXTRACTION_PATTERN > $LOOM_DIR/validatorkey
+        EXTRACTION_PATTERN="{value}"
+        cat $LOOM_DIR/validatorkey | jq -r '.[] | .value' > $LOOM_DIR/validatorkey2
+        Validator_Key=`cat $LOOM_DIR/validatorkey2`
+        sed -i "s@pubKey.*@pubKey\": \"${Validator_Key}\",@m" $LOOM_DIR/genesis.json
+        # Disable the Fn (hack with 4 spaces and backslashes)
+        sed -i "/BatchSignFnConfig/!b;n;c \ \ \ \ Enabled: False" $LOOM_DIR/loom.yml
     fi
     echo 'Loom DAppChain initialized in ' $LOOM_DIR
 }
@@ -293,11 +338,6 @@ fi
 echo "REPO_ROOT=(${REPO_ROOT})"
 echo "GOPATH=(${GOPATH})"
 
-if [[ "$INIT_DAPPCHAIN" == true ]]; then
-    init_dappchain
-else
-    cp $E2E_CONFIG_DIR/loom.yml $LOOM_DIR/loom.yml
-fi
 
 trap cleanup EXIT
 
@@ -316,7 +356,7 @@ if [[ "$SKIP_TESTS" == false ]]; then
         DAPPCHAIN_NETWORK=$DAPPCHAIN_NETWORK \
         ETHEREUM_NETWORK=$ETHEREUM_NETWORK \
         ORACLE_WAIT_TIME=$ORACLE_WAIT_TIME \
-        go test gateway -tags "evm" -run TestTransferGatewayTestSuite
+        go test -v gateway -tags "evm" -run TestTransferGatewayTestSuite
     else
         # each test takes about 6 mins to complete on Rinkeby, so run them individually to get
         # quicker feedback when something fails

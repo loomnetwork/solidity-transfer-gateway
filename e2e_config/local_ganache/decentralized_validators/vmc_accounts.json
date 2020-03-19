@@ -1,0 +1,38 @@
+{
+   "mnemonic": "puppy flame segment celery survey hello identify crumble acquire genuine chair style",
+   "infuraAPIKey": "5Ic91y0T9nLh6qUg33K0",
+   "threshold_num": 2,
+   "threshold_denom": 3,
+   "validators" : [
+      {
+         "key": "0xfd9eca4846d4e6e904a2d8f8be8c957339928f0b74d98feecbc3a6a5705af40f",
+         "address": "0x18789D1d889e53447e21FB42354d4F3800d4DE59",
+         "power": 100
+      },
+      {
+         "key": "0xbdbb1dc386bd6a88d80a41ea074840a7fff8eafe884b9ab9279ddf97485a554b",
+         "address": "0xD6A0797865F969D103a3a221B28C98241812217D",
+         "power": 100
+      },
+      {
+         "key": "0x476c50f3b9436ce307bc289989325e630b0f3e96d8ec944a5d2da3a9d4bf31cd",
+         "address": "0xCCF668f0Ef635c00a801e903fE67c3F471262BC5",
+         "power": 100
+      },
+      {
+         "key": "0x17af458d535675e56e220890b03490953a69fdefb67aa57373ab8d447cb46f95",
+         "address": "0x13Bb43a491E095FFdf67cc9CAFcdD201fCD8B30c",
+         "power": 100
+      },
+      {
+         "key": "0xf1215d556929afa42a68ba9187d20797ad8d6386327cb928b1ad68f7e5dd8f50",
+         "address": "0x62D4C13a0158AE82E9217DB4Ca6f0103AD12be30",
+         "power": 100
+      },
+      {
+         "key": "0x003962a71d9e940d2fdfa99bea0f69225f1ca212e59ff50ea8ee2403b7cc4bf1",
+         "address": "0xb33E87ED5519d40C7725C1054b8D2c59cB5F270F",
+         "power": 100
+      }
+   ]
+}

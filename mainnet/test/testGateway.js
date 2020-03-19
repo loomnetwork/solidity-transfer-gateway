@@ -1,102 +1,150 @@
-const ERC721XCards = artifacts.require('ERC721XCards')
+// vmc and gateway
+const ValidatorManagerContract = artifacts.require('VMCMock')
 const Gateway = artifacts.require('Gateway')
+
+// Tokens
+const ERC721XCards = artifacts.require('ERC721XCards')
 const GameToken = artifacts.require('GameToken')
 const Loom = artifacts.require('LoomToken')
 const BadERC20Token = artifacts.require('BadERC20Token')
-
-const Reentrancy = artifacts.require('./ReentrancyExploit.sol')
+const Reentrancy = artifacts.require('ReentrancyExploit')
 
 const { soliditySha3 } = require('web3-utils')
-const { signHash, assertEventVar, Promisify } = require('./utils.js')
+const { assertEventVar, Promisify, createSigns, createValidators } = require('./utils.js')
+const { shouldFail } = require('openzeppelin-test-helpers');
 
-import assertRevert from './helpers/assertRevert.js'
-import expectThrow from './helpers/expectThrow'
-
-
-contract('Transfer Gateway V2', async (accounts) => {
-  let gateway, erc20, erc721x, loom, badToken
+contract('Transfer Gateway', async (accounts) => {
+  let gateway, erc20, erc721x, loom, vmc
   let [validator, alice, bob] = accounts
+  let validators
+  let valIndex, validatorsTotalPower
+  let acc
 
-  const ERC20_AMOUNT = 10 * 10 ** 18
-  const ERC721_UID = 2
-  const ETHER_AMOUNT = 3 * 10 ** 18;
+  const TokenKind = {
+      ETH:     "\x0eWithdraw ETH:\n",
+      ERC20:   "\x10Withdraw ERC20:\n",
+      ERC721:  "\x11Withdraw ERC721:\n",
+      ERC721X: "\x12Withdraw ERC721X:\n"
+  };
+
+  const ERC20_AMOUNT = "10000000000000000000";
+  const ERC721_UID = "2"
+  const ETHER_AMOUNT = "3000000000000000000";
+  const threshold = 0.67
 
   beforeEach(async () => {
+    validators = createValidators(21);
+
     loom = await Loom.new({from : validator })
-    gateway = await Gateway.new(loom.address, [validator], 3, 4, [], [], { from: validator })
-    erc721x = await ERC721XCards.new(gateway.address, { from: validator })
+    vmc = await ValidatorManagerContract.new(validators.addresses, validators.powers, 2, 3, loom.address);
+    gateway = await Gateway.new(vmc.address)
+    erc721x = await ERC721XCards.new(gateway.address, "rinkeby.loom.games/", { from: validator })
     erc20 = await GameToken.new({ from: validator })
-    badToken = await BadERC20Token.new({ from: validator })
-    gateway.toggleToken(erc721x.address, { from: validator })
+    await vmc.toggleAllowToken(erc721x.address, true, { from: validator })
 
     // Give Alice some coins
     let tokenIds = [...Array(5).keys()]
     let amounts = [ 100, 100, 1, 300, 1] // token 2 and 4 are NFTs
-    let receivers = [ accounts[0], accounts[1], accounts[0], accounts[2], accounts[1]]
+    let receivers = [alice, alice, alice, alice, alice ]
     await erc721x.airdrop(tokenIds, amounts, receivers, { from: validator })
+    await erc721x.airdrop([ 0 ] , [ 50 ], [ bob ], { from: validator })
     await erc20.transfer(alice, ERC20_AMOUNT, { from: validator })
+    await erc20.transfer(bob, ERC20_AMOUNT, { from: validator })
     await loom.transfer(alice, ERC20_AMOUNT, { from: validator })
-    await badToken.transfer(alice, ERC20_AMOUNT, { from: validator })
 
+    validatorsTotalPower = await vmc.totalPower.call();
   })
 
-  describe('Initialization', async() => {
-    it('Number of accounts must match numbers of nonces', async () => {
-      const loom = await Loom.new({from : validator })
-      const accounts = ["0xf1459f9efdc06c7c278a1e9d6187050efe517ab5"]
-      const nonces = []
-      assertRevert(Gateway.new(loom.address, [validator], 3, 4, accounts, nonces, { from: validator }))
-    })
-    it('Account nonces should be prepopulated', async () => {
-      let accounts = ["0xf1459f9efdc06c7c278a1e9d6187050efe517ab5", "0x9e404e86127931ac193da80c26e49922090d97a0"]
-      let nonces = [2, 4]
-      const gateway = await Gateway.new(loom.address, [validator], 3, 4, accounts, nonces, { from: validator })
-      assert.equal(await gateway.nonces.call(accounts[0]), nonces[0])
-      assert.equal(await gateway.nonces.call(accounts[1]), nonces[1])
-    })
-  })
+  describe('Ether deposit / withdrawals + edge cases', async () => {
 
-  describe('Ether deposit / withdrawals', async () => {
+      let amount = ETHER_AMOUNT
 
-    let amount = ETHER_AMOUNT
+      it('Cannot frontrun rotateValidators call with a withdrawal transaction to prevent being kicked out of the validators', async () => {
+          const tinyAmount = 1
+          await depositEther(alice, amount)
 
-    it('Alice sends some ether to the Gateway. Validator signs a message that allows her to withdraw the ether.', async () => {
-      await depositEther(alice, amount)
-      let nonce = await gateway.nonces.call(alice)
-      let hash = soliditySha3(alice, nonce, gateway.address, soliditySha3(amount))
-      let sig = await signHash(validator, hash)
-      await gateway.withdrawETH(amount, sig, { from: alice }) // if successful alice gets her eth back
-    })
+          const newValidators = createValidators(11);
+          const rotateNonce = await vmc.nonce.call() // this should not be modified 
+          const newVSetHash = soliditySha3(
+              vmc.address,
+              rotateNonce,
+              soliditySha3(
+                  {t: 'address[]', v: newValidators.addresses},
+                  {t: 'uint256[]', v: newValidators.powers}
+              )
+          )
+          let sigs = await createSigns(validators, newVSetHash, validatorsTotalPower, 1)
 
-    it('Is not reentrant', async () => {
-      await depositEther(alice, amount)
+          // try to withdraw in an attempt to mutate the vmc state
+          let nonce = await gateway.nonces.call(alice)
+          let hash = soliditySha3(TokenKind.ETH, alice, nonce, gateway.address, soliditySha3(tinyAmount))
+          let withdraw_sigs = await createSigns(validators, hash, validatorsTotalPower, threshold)
+          // this should not affect the nonce that was signed for the rotateValidators call
+          await gateway.withdrawETH(tinyAmount, withdraw_sigs.signers, withdraw_sigs.v, withdraw_sigs.r, withdraw_sigs.s, { from: alice }) 
 
-      // Bob's contract `reentrancy` is authorized 0.1 * amount, but he'll try to steal more.
-      const reentrancy = await Reentrancy.new({from : bob})
-      let nonce = await gateway.nonces.call(alice)
-      let hash = soliditySha3(reentrancy.address, nonce, gateway.address, soliditySha3(amount * 0.1))
-      let sig = await signHash(validator, hash)
-      await reentrancy.setup(gateway.address, amount * 0.1, sig)
-      assertRevert(reentrancy.attack())
-    })
+          // This should not fail if the nonce is not incremented by external calls
+          await vmc.rotateValidators(newValidators.addresses, newValidators.powers, sigs.signers, sigs.v, sigs.r, sigs.s, { from: accounts[0] })
+          const _validators = await vmc.getValidators.call();
+          assert.equal(_validators.length, newValidators.addresses.length)
+      })
 
-    it('Validator signs an invalid amount. Tx fails.', async () => {
-      await depositEther(alice, amount)
-      let invalid_amount = 10 * amount
-      let nonce = await gateway.nonces.call(alice)
-      let hash = soliditySha3(alice, nonce, gateway.address, soliditySha3(10 * invalid_amount))
-      let sig = await signHash(validator, hash)
-      assertRevert(gateway.withdrawETH(invalid_amount, sig, { from: alice }))
-    })
+      it('Withdraw ether with stake >= equal to threshold', async () => {
+          await depositEther(alice, amount)
+          let nonce = await gateway.nonces.call(alice)
+          let hash = soliditySha3(TokenKind.ETH, alice, nonce, gateway.address, soliditySha3(amount))
+          let sigs = await createSigns(validators, hash, validatorsTotalPower, threshold)
+          await gateway.withdrawETH(amount, sigs.signers, sigs.v, sigs.r, sigs.s, { from: alice }) 
+      })
 
-    it('Validator signs an invalid nonce. Tx fails', async () => {
-      await depositEther(alice, amount)
-      let invalid_nonce = 42
-      let hash = soliditySha3(alice, invalid_nonce, gateway.address, soliditySha3(amount))
-      let sig = await signHash(validator, hash)
-      assertRevert(gateway.withdrawETH(amount, sig, { from: alice }))
-    })
+      it('Cannot withdraw ether with stake < threshold', async () => {
+          await depositEther(alice, amount)
+          let nonce = await gateway.nonces.call(alice)
+          let hash = soliditySha3(TokenKind.ETH, alice, nonce, gateway.address, soliditySha3(amount))
+          let sigs = await createSigns(validators, hash, validatorsTotalPower, threshold - 0.1)
+          await shouldFail.reverting(gateway.withdrawETH(amount, sigs.signers, sigs.v, sigs.r, sigs.s, { from: alice }))
+      })
 
+      it('Cannot withdraw more than has been deposited', async () => {
+          await depositEther(alice, amount)
+          let invalid_amount = 10 * amount
+          let nonce = await gateway.nonces.call(alice)
+          let hash = soliditySha3(TokenKind.ETH, alice, nonce, gateway.address, soliditySha3(invalid_amount))
+          let sigs = await createSigns(validators, hash, validatorsTotalPower, threshold - 0.1)
+          await shouldFail.reverting(gateway.withdrawETH(invalid_amount.toString(), sigs.signers, sigs.v, sigs.r, sigs.s, { from: alice }))
+      })
+
+      it('Cannot reuse a sig to withdraw (invalid nonce)', async () => {
+          await depositEther(alice, amount)
+          await depositEther(bob, amount) // bob also deposits
+
+          let nonce = await gateway.nonces.call(alice)
+          let hash = soliditySha3(TokenKind.ETH, alice, nonce, gateway.address, soliditySha3(amount))
+          let sigs = await createSigns(validators, hash, validatorsTotalPower, threshold)
+          await gateway.withdrawETH(amount, sigs.signers, sigs.v, sigs.r, sigs.s, { from: alice });
+
+          // alice tries to replay the signature - should fail because her
+          // nonce has been used alrd
+          await shouldFail.reverting(gateway.withdrawETH(amount, sigs.signers, sigs.v, sigs.r, sigs.s, { from: alice }))
+
+          // validators update the nonce and alice can indeed withdraw bob's
+          // funds (intended)
+          nonce = await gateway.nonces.call(alice)
+          hash = soliditySha3(TokenKind.ETH, alice, nonce, gateway.address, soliditySha3(amount))
+          sigs = await createSigns(validators, hash, validatorsTotalPower, threshold)
+          await gateway.withdrawETH(amount, sigs.signers, sigs.v, sigs.r, sigs.s, { from: alice });
+      })
+
+      it('Is not reentrant', async () => {
+          await depositEther(alice, amount)
+
+          // Bob's contract `reentrancy` is authorized 0.1 * amount, but he'll try to steal more.
+          const reentrancy = await Reentrancy.new({from : bob})
+          let nonce = await gateway.nonces.call(alice)
+          let hash = soliditySha3(TokenKind.ETH, reentrancy.address, nonce, gateway.address, soliditySha3(TokenKind.ETH, 0.1 * amount))
+          let sigs = await createSigns(validators, hash, validatorsTotalPower, threshold)
+          await reentrancy.setup(gateway.address, (amount * 0.1).toString(), sigs.signers, sigs.v, sigs.r, sigs.s)
+          await shouldFail.reverting(reentrancy.attack())
+      })
 
     async function depositEther(from, amount) {
       let tx = await gateway.sendTransaction({ 'from': from, 'value': amount })
@@ -104,8 +152,6 @@ contract('Transfer Gateway V2', async (accounts) => {
       // Check the user's balance
       assertEventVar(tx, 'ETHReceived', 'from', from);
       assertEventVar(tx, 'ETHReceived', 'amount', amount);
-      let balance = await gateway.getETH.call()
-      assert.equal(balance, amount);
       return tx;
     }
   })
@@ -114,173 +160,204 @@ contract('Transfer Gateway V2', async (accounts) => {
 
     let amount = ERC20_AMOUNT
 
-    it('Alice sends some ERC20 to the Gateway. Validator signs a message that allows her to withdraw the erc20.', async () => {
-      await depositERC20(alice, amount)
-      let nonce = await gateway.nonces.call(alice)
-      let hash = soliditySha3(alice, nonce, gateway.address, soliditySha3(amount, erc20.address))
-      let sig = await signHash(validator, hash)
-      await gateway.withdrawERC20(amount, sig, erc20.address, { from: alice }) // if successful alice gets her erc20 back
-      assert.equal(await erc20.balanceOf.call(alice), amount)
-    })
+      it('Withdraw ERC20 with stake >= equal to threshold', async () => {
+          await depositERC20(alice, amount)
+          let nonce = await gateway.nonces.call(alice)
+          let hash = soliditySha3(TokenKind.ERC20, alice, nonce, gateway.address, soliditySha3(amount, erc20.address))
+          let sigs = await createSigns(validators, hash, validatorsTotalPower, threshold)
+          await gateway.withdrawERC20(amount, erc20.address, sigs.signers, sigs.v, sigs.r, sigs.s, { from: alice });
+          assert.equal(await erc20.balanceOf.call(alice), amount)
+      })
 
-    it('Validator signs an invalid amount. Tx fails.', async () => {
-      await depositERC20(alice, amount)
-      let nonce = await gateway.nonces.call(alice)
-      let hash = soliditySha3(alice, nonce, gateway.address, soliditySha3(10 * amount, erc20.address))
-      let sig = await signHash(validator, hash)
-      assertRevert(gateway.withdrawERC20(amount, sig, erc20.address, { from: alice }))
-      assert.equal(await erc20.balanceOf.call(alice), 0)
-    })
+      it('Withdraw ERC20 with stake < threshold', async () => {
+          await depositERC20(alice, amount)
+          let nonce = await gateway.nonces.call(alice)
+          let hash = soliditySha3(TokenKind.ERC20, alice, nonce, gateway.address, soliditySha3(amount, erc20.address))
+          let sigs = await createSigns(validators, hash, validatorsTotalPower, threshold - 0.1)
+          await shouldFail.reverting(gateway.withdrawERC20(amount, erc20.address, sigs.signers, sigs.v, sigs.r, sigs.s, { from: alice }))
+      })
 
-    it('Validator signs an invalid nonce. Tx fails', async () => {
-      await depositERC20(alice, amount)
-      let nonce = 42
-      let hash = soliditySha3(alice, nonce, gateway.address, soliditySha3(amount, erc20.address))
-      let sig = await signHash(validator, hash)
-      assertRevert(gateway.withdrawERC20(amount, sig, erc20.address, { from: alice }))
-      assert.equal(await erc20.balanceOf.call(alice), 0)
-    })
+      it('Cannot withdraw more than has been deposited', async () => {
+          await depositERC20(alice, amount)
+          let invalid_amount = 10 * amount
+          let nonce = await gateway.nonces.call(alice)
+          let hash = soliditySha3(TokenKind.ERC20, alice, nonce, gateway.address, soliditySha3(invalid_amount, erc20.address))
+          let sigs = await createSigns(validators, hash, validatorsTotalPower, threshold)
+          await shouldFail.reverting(gateway.withdrawETH(invalid_amount.toString(), sigs.signers, sigs.v, sigs.r, sigs.s, { from: alice }))
+      })
 
-    it('Loom Withdraw event', async () => {
-      await depositLoom(alice, amount)
-      let nonce = await gateway.nonces.call(alice)
-      let hash = soliditySha3(alice, nonce, gateway.address, soliditySha3(amount, loom.address))
-      let sig = await signHash(validator, hash)
-      await gateway.withdrawERC20(amount, sig, loom.address, { from: alice }) // if successful alice gets her erc20 back
-      let withdrawn = await gateway.getPastEvents('TokenWithdrawn', {fromBlock: 0, toBlock: "latest"});
-      assert.equal(withdrawn[0].args.kind, 4)
-      assert.equal(await erc20.balanceOf.call(alice), amount)
-    })
+      it('Cannot reuse a sig to withdraw ERC20 (invalid nonce)', async () => {
+          await depositERC20(alice, amount)
+          await depositERC20(bob, amount) // bob also deposits
 
-    it('Withdraw bad erc20 token', async () => {
-      await depositBadERC20(alice, amount)
-      let nonce = await gateway.nonces.call(alice)
-      let hash = soliditySha3(alice, nonce, gateway.address, soliditySha3(amount, badToken.address))
-      let sig = await signHash(validator, hash)
-      await gateway.withdrawERC20(amount, sig, badToken.address, { from: alice }) // if successful alice gets her badToken back
-      assert.equal(await badToken.balanceOf.call(alice), amount)
-    })
+          let nonce = await gateway.nonces.call(alice)
+          let hash = soliditySha3(TokenKind.ERC20, alice, nonce, gateway.address, soliditySha3(amount, erc20.address))
+          let sigs = await createSigns(validators, hash, validatorsTotalPower, threshold)
+          await gateway.withdrawERC20(amount, erc20.address, sigs.signers, sigs.v, sigs.r, sigs.s, { from: alice });
 
-    async function depositLoom(from, amount) {
-      await loom.approve(gateway.address, amount, { 'from': from })
-      await gateway.depositERC20(amount, loom.address, { 'from': from})
-      let received = await gateway.getPastEvents('LoomCoinReceived', {fromBlock: 0, toBlock: "latest"});
-      received = received[0].args;
-      assert.equal(received.from, from);
-      assert.equal(received.amount, amount);
-      assert.equal(received.loomCoinAddress, loom.address);
-      let balance = await gateway.getERC20.call(loom.address)
-      assert.equal(balance, amount)
-    }
+          // alice tries to replay the signature - should fail because her
+          // nonce has been used alrd
+          await shouldFail.reverting(gateway.withdrawERC20(amount, erc20.address, sigs.signers, sigs.v, sigs.r, sigs.s, { from: alice }))
 
-    async function depositERC20(from, amount) {
-      await erc20.approve(gateway.address, amount, { 'from': from })
-      await gateway.depositERC20(amount, erc20.address, { 'from': from})
-      let received = await gateway.getPastEvents('ERC20Received', {fromBlock: 0, toBlock: "latest"});
-      received = received[0].args;
-      assert.equal(received.from, from);
-      assert.equal(received.amount, amount);
-      assert.equal(received.contractAddress, erc20.address);
-      let balance = await gateway.getERC20.call(erc20.address)
-      assert.equal(balance, amount)
-    }
+          // validators update the nonce and alice can indeed withdraw bob's
+          // funds (intended)
+          nonce = await gateway.nonces.call(alice)
+          hash = soliditySha3(TokenKind.ERC20, alice, nonce, gateway.address, soliditySha3(amount, erc20.address))
+          sigs = await createSigns(validators, hash, validatorsTotalPower, threshold)
+          await gateway.withdrawERC20(amount, erc20.address, sigs.signers, sigs.v, sigs.r, sigs.s, { from: alice });
+      })
 
-    async function depositBadERC20(from, amount) {
-      await badToken.approve(gateway.address, amount, { 'from': from })
-      await gateway.depositERC20(amount, badToken.address, { 'from': from})
-      let received = await gateway.getPastEvents('ERC20Received', {fromBlock: 0, toBlock: "latest"});
-      received = received[0].args;
-      assert.equal(received.from, from);
-      assert.equal(received.amount, amount);
-      assert.equal(received.contractAddress, badToken.address);
-      let balance = await gateway.getERC20.call(badToken.address)
-      assert.equal(balance, amount)
-    }
+      it('Loom Withdraw event', async () => {
+          await depositLoom(alice, amount)
+          let nonce = await gateway.nonces.call(alice)
+
+          let hash = soliditySha3(TokenKind.ERC20, alice, nonce, gateway.address, soliditySha3(amount, loom.address))
+          let sigs = await createSigns(validators, hash, validatorsTotalPower, threshold)
+          await gateway.withdrawERC20(amount, loom.address, sigs.signers, sigs.v, sigs.r, sigs.s, { from: alice });
+
+          let withdrawn = await gateway.getPastEvents('TokenWithdrawn', {fromBlock: 0, toBlock: "latest"});
+          assert.equal(withdrawn[0].args.kind, 4)
+          assert.equal(await erc20.balanceOf.call(alice), amount)
+      })
+
+      async function depositLoom(from, amount) {
+          await loom.approve(gateway.address, amount, { 'from': from })
+          await gateway.depositERC20(amount, loom.address, { 'from': from})
+          let received = await gateway.getPastEvents('LoomCoinReceived', {fromBlock: 0, toBlock: "latest"});
+          received = received[0].args;
+          assert.equal(received.from, from);
+          assert.equal(received.amount, amount);
+          assert.equal(received.loomCoinAddress, loom.address);
+      }
+
+      async function depositERC20(from, amount) {
+          await erc20.approve(gateway.address, amount, { 'from': from })
+          await gateway.depositERC20(amount, erc20.address, { 'from': from})
+      }
   })
 
-  describe('ERC721x deposit / withdrawals', async () => {
+    describe('ERC721 deposits / withdrawals', async () => {
 
-    it('Alice sends an ERC721 to the Gateway. Validator signs a message that allows her to withdraw the NFT.', async () => {
-      let current_account = accounts[0];
-      let uid = 2;
-      await depositERC721(current_account, uid)
-      let nonce = await gateway.nonces.call(current_account)
-      let hash = soliditySha3(current_account, nonce, gateway.address, soliditySha3(uid, erc721x.address))
-      let sig = await signHash(validator, hash)
-      await gateway.withdrawERC721(uid, sig, erc721x.address, { from: current_account }) // if successful current_account gets her erc721x back
-      assert.equal(await erc721x.ownerOf.call(uid), current_account)
-    })
+        let uid = 2;
+        let other_uid = 4;
 
-    it('Alice sends an ERC721x to the Gateway. Validator signs a message that allows her to withdraw the MFT.', async () => {
-      let current_account = accounts[2];
-      let uid = 3;
-      let amount = 100
-      await depositERC721X(current_account, uid, amount)
-      let nonce = await gateway.nonces.call(alice)
-      let hash = soliditySha3(current_account, nonce, gateway.address, soliditySha3(uid, amount, erc721x.address))
-      let sig = await signHash(validator, hash)
-      await gateway.withdrawERC721X(uid, amount, sig, erc721x.address, { from: current_account }) 
-      assert.equal((await erc721x.balanceOf(current_account, uid)).toNumber(), 300)
-    })
+        it('Withdraw ERC721 with stake >= equal to threshold', async () => {
+            await depositERC721(alice, uid)
+            let nonce = await gateway.nonces.call(alice)
+            let hash = soliditySha3(TokenKind.ERC721, alice, nonce, gateway.address, soliditySha3(uid, erc721x.address))
+            let sigs = await createSigns(validators, hash, validatorsTotalPower, threshold)
+            await gateway.withdrawERC721(uid, erc721x.address, sigs.signers, sigs.v, sigs.r, sigs.s, { from: alice });
 
-    it('Validator signs an invalid uid. Tx fails.', async () => {
-      let current_account = accounts[0];
-      let uid = 2;
-      await depositERC721(current_account, uid)
-      let nonce = await gateway.nonces.call(current_account)
-      let hash = soliditySha3(current_account, gateway.address, nonce, soliditySha3(3, erc721x.address))
-      let sig = await signHash(validator, hash)
-      assertRevert(gateway.withdrawERC721(uid, sig, erc721x.address, { from: current_account }))
-      assert.equal(await erc721x.ownerOf.call(uid), gateway.address)
-    })
+            assert.equal(await erc721x.ownerOf.call(uid), alice)
+        })
 
-    it('Validator signs an invalid nonce. Tx fails', async () => {
-      let current_account = accounts[0];
-      let uid = 2;
-      await depositERC721(current_account, uid)
-      let nonce = 42
-      let hash = soliditySha3(current_account, gateway.address, nonce, soliditySha3(uid, erc721x.address))
-      let sig = await signHash(validator, hash)
-      assertRevert(gateway.withdrawERC721(uid, sig, erc721x.address, { from: current_account }))
-      assert.equal(await erc721x.ownerOf.call(uid), gateway.address)
-    })
+        it('Cannot withdraw ERC721 with stake < threshold', async () => {
+            await depositERC721(alice, uid)
+            let nonce = await gateway.nonces.call(alice)
+            let hash = soliditySha3(TokenKind.ERC721, alice, nonce, gateway.address, soliditySha3(uid, erc721x.address))
+            let sigs = await createSigns(validators, hash, validatorsTotalPower, threshold - 0.1)
+            await shouldFail.reverting(gateway.withdrawERC721(uid, erc721x.address, sigs.signers, sigs.v, sigs.r, sigs.s, { from: alice }));
+        })
 
-    it('Validator signs an invalid balance', async () => {
-      let current_account = accounts[2];
-      let uid = 3;
-      let amount = 100
-      await depositERC721X(current_account, uid, amount)
-      let nonce = await gateway.nonces.call(alice)
-      let hash = soliditySha3(current_account, nonce, gateway.address, soliditySha3(uid, amount + 10 , erc721x.address))
-      let sig = await signHash(validator, hash)
-      assertRevert(gateway.withdrawERC721X(uid, amount, sig, erc721x.address, { from: current_account }))
-      assert.equal((await erc721x.balanceOf(current_account, uid)).toNumber(), 200)
-    })
+        it('Cannot withdraw another uid', async () => {
+            await depositERC721(alice, uid)
+            let nonce = await gateway.nonces.call(alice)
+            let hash = soliditySha3(TokenKind.ERC721, alice, nonce, gateway.address, soliditySha3(uid, erc721x.address))
+            let sigs = await createSigns(validators, hash, validatorsTotalPower, threshold - 0.1)
+            await shouldFail.reverting(gateway.withdrawERC721(other_uid, erc721x.address, sigs.signers, sigs.v, sigs.r, sigs.s, { from: alice }))
+        })
 
-    async function depositERC721(from, uid) {
-      await erc721x.depositToGatewayNFT(uid, { 'from': from })
-      let received = await gateway.getPastEvents('ERC721Received', {fromBlock: 0, toBlock: "latest"});
-      received = received[0].args;
-      assert.equal(received.from, from);
-      assert.equal(received.tokenId, uid);
-      assert.equal(received.contractAddress, erc721x.address);
-      // Check the user's balance
-      let balance = await gateway.getERC721.call(uid, erc721x.address)
-      assert.ok(balance)
-    }
+        it('Cannot reuse a sig to withdraw ERC721 (invalid nonce)', async () => {
+            await depositERC721(alice, uid)
+            await depositERC721(alice, other_uid)
 
-    async function depositERC721X(from, uid, amount) {
-      await erc721x.depositToGateway(uid, amount, { 'from': from })
-      let received = await gateway.getPastEvents('ERC721XReceived', {fromBlock: 0, toBlock: "latest"});
-      received = received[0].args;
-      assert.equal(received.from, from);
-      assert.equal(received.tokenId, uid);
-      assert.equal(received.amount, amount);
-      assert.equal(received.contractAddress, erc721x.address);
+            let nonce = await gateway.nonces.call(alice)
+            let hash = soliditySha3(TokenKind.ERC721, alice, nonce, gateway.address, soliditySha3(uid, erc721x.address))
+            let sigs = await createSigns(validators, hash, validatorsTotalPower, threshold)
+            await gateway.withdrawERC721(uid, erc721x.address, sigs.signers, sigs.v, sigs.r, sigs.s, { from: alice });
 
-      // Check the user's balance
-      let balance = await gateway.getERC721X.call(uid, erc721x.address)
-      assert.equal(balance, amount)
-    }
-  })
+            // alice tries to replay the signature - should fail because her
+            // nonce has been used alrd
+            await shouldFail.reverting(gateway.withdrawERC721(other_uid, erc721x.address, sigs.signers, sigs.v, sigs.r, sigs.s, { from: alice }))
+
+            // validators update the nonce and alice can indeed withdraw bob's
+            // funds (intended)
+            nonce = await gateway.nonces.call(alice)
+            hash = soliditySha3(TokenKind.ERC721, alice, nonce, gateway.address, soliditySha3(other_uid, erc721x.address))
+            sigs = await createSigns(validators, hash, validatorsTotalPower, threshold)
+            await gateway.withdrawERC721(other_uid, erc721x.address, sigs.signers, sigs.v, sigs.r, sigs.s, { from: alice });
+        })
+
+
+        async function depositERC721(from, uid) {
+            await erc721x.depositToGatewayNFT(uid, { 'from': from })
+        }
+
+    });
+
+  
+    describe('ERC721x deposits / withdrawals', async () => {
+
+        let uid = 0;
+        let other_uid = 1;
+        let amount = 50
+
+        it('Withdraw ERC721x with stake >= equal to threshold', async () => {
+            await depositERC721x(alice, uid, amount)
+            let nonce = await gateway.nonces.call(alice)
+            let hash = soliditySha3(TokenKind.ERC721X, alice, nonce, gateway.address, soliditySha3(uid, amount, erc721x.address))
+            let sigs = await createSigns(validators, hash, validatorsTotalPower, threshold)
+            await gateway.withdrawERC721X(uid, amount, erc721x.address, sigs.signers, sigs.v, sigs.r, sigs.s, { from: alice });
+        })
+
+        it('Cannot withdraw ERC721x with stake < threshold', async () => {
+            await depositERC721x(alice, uid, amount)
+            let nonce = await gateway.nonces.call(alice)
+            let hash = soliditySha3(TokenKind.ERC721X, alice, nonce, gateway.address, soliditySha3(uid, amount, erc721x.address))
+            let sigs = await createSigns(validators, hash, validatorsTotalPower, threshold - 0.1)
+            await shouldFail.reverting(gateway.withdrawERC721X(uid, amount, erc721x.address, sigs.signers, sigs.v, sigs.r, sigs.s, { from: alice }));
+        })
+
+        it('Cannot withdraw another uid', async () => {
+            await depositERC721x(alice, uid, amount)
+            let nonce = await gateway.nonces.call(alice)
+            let hash = soliditySha3(TokenKind.ERC721X, alice, nonce, gateway.address, soliditySha3(uid, erc721x.address))
+            let sigs = await createSigns(validators, hash, validatorsTotalPower, threshold)
+            await shouldFail.reverting(gateway.withdrawERC721X(other_uid, amount, erc721x.address, sigs.signers, sigs.v, sigs.r, sigs.s, { from: alice }))
+        })
+
+        it('Cannot withdraw another amount', async () => {
+            await depositERC721x(alice, uid, amount - 1)
+            let nonce = await gateway.nonces.call(alice)
+            let hash = soliditySha3(TokenKind.ERC721X, alice, nonce, gateway.address, soliditySha3(uid, amount, erc721x.address))
+            let sigs = await createSigns(validators, hash, validatorsTotalPower, threshold)
+            await shouldFail.reverting(gateway.withdrawERC721X(uid, amount - 1,  erc721x.address, sigs.signers, sigs.v, sigs.r, sigs.s, { from: alice }))
+        })
+
+        it('Cannot reuse a sig to withdraw ERC721 (invalid nonce)', async () => {
+            await depositERC721x(alice, uid, amount)
+            await depositERC721x(bob, uid, amount)
+
+            let nonce = await gateway.nonces.call(alice)
+            let hash = soliditySha3(TokenKind.ERC721X, alice, nonce, gateway.address, soliditySha3(uid, amount, erc721x.address))
+            let sigs = await createSigns(validators, hash, validatorsTotalPower, threshold)
+            await gateway.withdrawERC721X(uid, amount, erc721x.address, sigs.signers, sigs.v, sigs.r, sigs.s, { from: alice });
+
+            // alice tries to replay the signature - should fail because her
+            // nonce has been used alrd
+            await shouldFail.reverting(gateway.withdrawERC721X(uid, amount, erc721x.address, sigs.signers, sigs.v, sigs.r, sigs.s, { from: alice }))
+
+            // validators update the nonce and alice can indeed withdraw bob's
+            // funds (intended)
+            nonce = await gateway.nonces.call(alice)
+            hash = soliditySha3(TokenKind.ERC721X, alice, nonce, gateway.address, soliditySha3(uid, amount, erc721x.address))
+            sigs = await createSigns(validators, hash, validatorsTotalPower, threshold)
+            await gateway.withdrawERC721X(uid, amount, erc721x.address, sigs.signers, sigs.v, sigs.r, sigs.s, { from: alice });
+        })
+
+        async function depositERC721x(from, uid, amount) {
+            await erc721x.depositToGateway(uid, amount, { 'from': from })
+        }
+
+    });
 })

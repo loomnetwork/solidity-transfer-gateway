@@ -1,4 +1,5 @@
-pragma solidity ^0.4.24;
+pragma solidity <0.6.0;
+
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 
 contract BadERC20Token {

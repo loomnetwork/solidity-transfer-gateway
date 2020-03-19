@@ -4,34 +4,21 @@
 package ethcontract
 
 import (
-	"math/big"
-	"strings"
-
 	ethereum "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
-)
-
-// Reference imports to suppress errors if they are not otherwise used.
-var (
-	_ = big.NewInt
-	_ = strings.NewReader
-	_ = ethereum.NotFound
-	_ = abi.U256
-	_ = bind.Bind
-	_ = common.Big1
-	_ = types.BloomLookup
-	_ = event.NewSubscription
+	"math/big"
+	"strings"
 )
 
 // MainnetCryptoCardsContractABI is the input ABI used to generate the binding from.
-const MainnetCryptoCardsContractABI = "[{\"constant\":true,\"inputs\":[{\"name\":\"_interfaceId\",\"type\":\"bytes4\"}],\"name\":\"supportsInterface\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"name\",\"outputs\":[{\"name\":\"\",\"type\":\"string\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_tokenId\",\"type\":\"uint256\"}],\"name\":\"getApproved\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_to\",\"type\":\"address\"},{\"name\":\"_tokenId\",\"type\":\"uint256\"}],\"name\":\"approve\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"gateway\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"totalSupply\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"InterfaceId_ERC165\",\"outputs\":[{\"name\":\"\",\"type\":\"bytes4\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_from\",\"type\":\"address\"},{\"name\":\"_to\",\"type\":\"address\"},{\"name\":\"_tokenId\",\"type\":\"uint256\"}],\"name\":\"transferFrom\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_owner\",\"type\":\"address\"},{\"name\":\"_index\",\"type\":\"uint256\"}],\"name\":\"tokenOfOwnerByIndex\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_from\",\"type\":\"address\"},{\"name\":\"_to\",\"type\":\"address\"},{\"name\":\"_tokenId\",\"type\":\"uint256\"}],\"name\":\"safeTransferFrom\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_tokenId\",\"type\":\"uint256\"}],\"name\":\"exists\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_index\",\"type\":\"uint256\"}],\"name\":\"tokenByIndex\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_tokenId\",\"type\":\"uint256\"}],\"name\":\"ownerOf\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_owner\",\"type\":\"address\"}],\"name\":\"balanceOf\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"symbol\",\"outputs\":[{\"name\":\"\",\"type\":\"string\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_to\",\"type\":\"address\"},{\"name\":\"_approved\",\"type\":\"bool\"}],\"name\":\"setApprovalForAll\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_from\",\"type\":\"address\"},{\"name\":\"_to\",\"type\":\"address\"},{\"name\":\"_tokenId\",\"type\":\"uint256\"},{\"name\":\"_data\",\"type\":\"bytes\"}],\"name\":\"safeTransferFrom\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_tokenId\",\"type\":\"uint256\"}],\"name\":\"tokenURI\",\"outputs\":[{\"name\":\"\",\"type\":\"string\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_owner\",\"type\":\"address\"},{\"name\":\"_operator\",\"type\":\"address\"}],\"name\":\"isApprovedForAll\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"name\":\"_gateway\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"_from\",\"type\":\"address\"},{\"indexed\":true,\"name\":\"_to\",\"type\":\"address\"},{\"indexed\":true,\"name\":\"_tokenId\",\"type\":\"uint256\"}],\"name\":\"Transfer\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"_owner\",\"type\":\"address\"},{\"indexed\":true,\"name\":\"_approved\",\"type\":\"address\"},{\"indexed\":true,\"name\":\"_tokenId\",\"type\":\"uint256\"}],\"name\":\"Approval\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"_owner\",\"type\":\"address\"},{\"indexed\":true,\"name\":\"_operator\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"_approved\",\"type\":\"bool\"}],\"name\":\"ApprovalForAll\",\"type\":\"event\"},{\"constant\":false,\"inputs\":[{\"name\":\"_to\",\"type\":\"address\"}],\"name\":\"mintTokens\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"tokenId\",\"type\":\"uint256\"}],\"name\":\"depositToGateway\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]"
+const MainnetCryptoCardsContractABI = "[{\"constant\":true,\"inputs\":[{\"name\":\"interfaceId\",\"type\":\"bytes4\"}],\"name\":\"supportsInterface\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"name\",\"outputs\":[{\"name\":\"\",\"type\":\"string\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"tokenId\",\"type\":\"uint256\"}],\"name\":\"getApproved\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"to\",\"type\":\"address\"},{\"name\":\"tokenId\",\"type\":\"uint256\"}],\"name\":\"approve\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"gateway\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"totalSupply\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"from\",\"type\":\"address\"},{\"name\":\"to\",\"type\":\"address\"},{\"name\":\"tokenId\",\"type\":\"uint256\"}],\"name\":\"transferFrom\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"owner\",\"type\":\"address\"},{\"name\":\"index\",\"type\":\"uint256\"}],\"name\":\"tokenOfOwnerByIndex\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"from\",\"type\":\"address\"},{\"name\":\"to\",\"type\":\"address\"},{\"name\":\"tokenId\",\"type\":\"uint256\"}],\"name\":\"safeTransferFrom\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"index\",\"type\":\"uint256\"}],\"name\":\"tokenByIndex\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"tokenId\",\"type\":\"uint256\"}],\"name\":\"ownerOf\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"owner\",\"type\":\"address\"}],\"name\":\"balanceOf\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"symbol\",\"outputs\":[{\"name\":\"\",\"type\":\"string\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"to\",\"type\":\"address\"},{\"name\":\"approved\",\"type\":\"bool\"}],\"name\":\"setApprovalForAll\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"from\",\"type\":\"address\"},{\"name\":\"to\",\"type\":\"address\"},{\"name\":\"tokenId\",\"type\":\"uint256\"},{\"name\":\"_data\",\"type\":\"bytes\"}],\"name\":\"safeTransferFrom\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"tokenId\",\"type\":\"uint256\"}],\"name\":\"tokenURI\",\"outputs\":[{\"name\":\"\",\"type\":\"string\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"owner\",\"type\":\"address\"},{\"name\":\"operator\",\"type\":\"address\"}],\"name\":\"isApprovedForAll\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"name\":\"_gateway\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"from\",\"type\":\"address\"},{\"indexed\":true,\"name\":\"to\",\"type\":\"address\"},{\"indexed\":true,\"name\":\"tokenId\",\"type\":\"uint256\"}],\"name\":\"Transfer\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"owner\",\"type\":\"address\"},{\"indexed\":true,\"name\":\"approved\",\"type\":\"address\"},{\"indexed\":true,\"name\":\"tokenId\",\"type\":\"uint256\"}],\"name\":\"Approval\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"owner\",\"type\":\"address\"},{\"indexed\":true,\"name\":\"operator\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"approved\",\"type\":\"bool\"}],\"name\":\"ApprovalForAll\",\"type\":\"event\"},{\"constant\":false,\"inputs\":[{\"name\":\"_to\",\"type\":\"address\"}],\"name\":\"mintTokens\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"tokenId\",\"type\":\"uint256\"}],\"name\":\"depositToGateway\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]"
 
 // MainnetCryptoCardsContractBin is the compiled bytecode used for deploying new contracts.
-const MainnetCryptoCardsContractBin = `0x60806040523480156200001157600080fd5b506040516020806200137e83398101604081815291518282018352600b82527f43727970746f43617264730000000000000000000000000000000000000000006020808401919091528351808501909452600384527f43434300000000000000000000000000000000000000000000000000000000009084015291620000c07f01ffc9a700000000000000000000000000000000000000000000000000000000640100000000620001f2810204565b620000f47f80ac58cd00000000000000000000000000000000000000000000000000000000640100000000620001f2810204565b620001287f4f558e7900000000000000000000000000000000000000000000000000000000640100000000620001f2810204565b81516200013d9060059060208501906200025f565b508051620001539060069060208401906200025f565b50620001887f780e9d6300000000000000000000000000000000000000000000000000000000640100000000620001f2810204565b620001bc7f5b5e139f00000000000000000000000000000000000000000000000000000000640100000000620001f2810204565b5050600d805433600160a060020a031991821617909155600e8054909116600160a060020a039290921691909117905562000304565b7fffffffff0000000000000000000000000000000000000000000000000000000080821614156200022257600080fd5b7fffffffff00000000000000000000000000000000000000000000000000000000166000908152602081905260409020805460ff19166001179055565b828054600181600116156101000203166002900490600052602060002090601f016020900481019282601f10620002a257805160ff1916838001178555620002d2565b82800160010185558215620002d2579182015b82811115620002d2578251825591602001919060010190620002b5565b50620002e0929150620002e4565b5090565b6200030191905b80821115620002e05760008155600101620002eb565b90565b61106a80620003146000396000f30060806040526004361061011c5763ffffffff7c010000000000000000000000000000000000000000000000000000000060003504166301ffc9a7811461012157806306fdde0314610157578063081812fc146101e1578063095ea7b314610215578063116191b61461023b57806318160ddd1461025057806319fa8f501461027757806323b872dd146102a95780632f745c59146102d357806342842e0e146102f75780634f558e79146103215780634f6ccce7146103395780636352211e1461035157806370a08231146103695780639267daba1461038a57806395d89b41146103a2578063a22cb465146103b7578063b88d4fde146103dd578063bcfaa79d1461044c578063c87b56dd1461046d578063e985e9c514610485575b600080fd5b34801561012d57600080fd5b50610143600160e060020a0319600435166104ac565b604080519115158252519081900360200190f35b34801561016357600080fd5b5061016c6104cb565b6040805160208082528351818301528351919283929083019185019080838360005b838110156101a657818101518382015260200161018e565b50505050905090810190601f1680156101d35780820380516001836020036101000a031916815260200191505b509250505060405180910390f35b3480156101ed57600080fd5b506101f9600435610562565b60408051600160a060020a039092168252519081900360200190f35b34801561022157600080fd5b50610239600160a060020a036004351660243561057d565b005b34801561024757600080fd5b506101f9610633565b34801561025c57600080fd5b50610265610642565b60408051918252519081900360200190f35b34801561028357600080fd5b5061028c610648565b60408051600160e060020a03199092168252519081900360200190f35b3480156102b557600080fd5b50610239600160a060020a036004358116906024351660443561066c565b3480156102df57600080fd5b50610265600160a060020a036004351660243561070f565b34801561030357600080fd5b50610239600160a060020a036004358116906024351660443561075c565b34801561032d57600080fd5b5061014360043561077d565b34801561034557600080fd5b5061026560043561079a565b34801561035d57600080fd5b506101f96004356107cf565b34801561037557600080fd5b50610265600160a060020a03600435166107f9565b34801561039657600080fd5b5061023960043561082c565b3480156103ae57600080fd5b5061016c610847565b3480156103c357600080fd5b50610239600160a060020a036004351660243515156108a8565b3480156103e957600080fd5b50604080516020601f60643560048181013592830184900484028501840190955281845261023994600160a060020a03813581169560248035909216956044359536956084940191819084018382808284375094975061092c9650505050505050565b34801561045857600080fd5b50610239600160a060020a0360043516610954565b34801561047957600080fd5b5061016c60043561099a565b34801561049157600080fd5b50610143600160a060020a0360043581169060243516610a4f565b600160e060020a03191660009081526020819052604090205460ff1690565b60058054604080516020601f60026000196101006001881615020190951694909404938401819004810282018101909252828152606093909290918301828280156105575780601f1061052c57610100808354040283529160200191610557565b820191906000526020600020905b81548152906001019060200180831161053a57829003601f168201915b505050505090505b90565b600090815260026020526040902054600160a060020a031690565b6000610588826107cf565b9050600160a060020a0383811690821614156105a357600080fd5b33600160a060020a03821614806105bf57506105bf8133610a4f565b15156105ca57600080fd5b600082815260026020526040808220805473ffffffffffffffffffffffffffffffffffffffff1916600160a060020a0387811691821790925591518593918516917f8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b92591a4505050565b600e54600160a060020a031681565b60095490565b7f01ffc9a70000000000000000000000000000000000000000000000000000000081565b6106763382610a7d565b151561068157600080fd5b600160a060020a038316151561069657600080fd5b600160a060020a03821615156106ab57600080fd5b6106b58382610adc565b6106bf8382610b4d565b6106c98282610c54565b8082600160a060020a031684600160a060020a03167fddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef60405160405180910390a4505050565b600061071a836107f9565b821061072557600080fd5b600160a060020a038316600090815260076020526040902080548390811061074957fe5b9060005260206000200154905092915050565b610778838383602060405190810160405280600081525061092c565b505050565b600090815260016020526040902054600160a060020a0316151590565b60006107a4610642565b82106107af57600080fd5b60098054839081106107bd57fe5b90600052602060002001549050919050565b600081815260016020526040812054600160a060020a03168015156107f357600080fd5b92915050565b6000600160a060020a038216151561081057600080fd5b50600160a060020a031660009081526003602052604090205490565b600e54610844903390600160a060020a03168361075c565b50565b60068054604080516020601f60026000196101006001881615020190951694909404938401819004810282018101909252828152606093909290918301828280156105575780601f1061052c57610100808354040283529160200191610557565b600160a060020a0382163314156108be57600080fd5b336000818152600460209081526040808320600160a060020a03871680855290835292819020805460ff1916861515908117909155815190815290519293927f17307eab39ab6107e8899845ad3d59bd9653f200f220920489ca2b5937696c31929181900390910190a35050565b61093784848461066c565b61094384848484610c9d565b151561094e57600080fd5b50505050565b600d546000908190600160a060020a0316331461097057600080fd5b600091505b6005821215610778575060095460010161098f8382610e0a565b600190910190610975565b60606109a58261077d565b15156109b057600080fd5b6000828152600b602090815260409182902080548351601f600260001961010060018616150201909316929092049182018490048402810184019094528084529091830182828015610a435780601f10610a1857610100808354040283529160200191610a43565b820191906000526020600020905b815481529060010190602001808311610a2657829003601f168201915b50505050509050919050565b600160a060020a03918216600090815260046020908152604080832093909416825291909152205460ff1690565b600080610a89836107cf565b905080600160a060020a031684600160a060020a03161480610ac4575083600160a060020a0316610ab984610562565b600160a060020a0316145b80610ad45750610ad48185610a4f565b949350505050565b81600160a060020a0316610aef826107cf565b600160a060020a031614610b0257600080fd5b600081815260026020526040902054600160a060020a031615610b49576000818152600260205260409020805473ffffffffffffffffffffffffffffffffffffffff191690555b5050565b6000806000610b5c8585610e59565b600084815260086020908152604080832054600160a060020a0389168452600790925290912054909350610b9790600163ffffffff610eef16565b600160a060020a038616600090815260076020526040902080549193509083908110610bbf57fe5b90600052602060002001549050806007600087600160a060020a0316600160a060020a0316815260200190815260200160002084815481101515610bff57fe5b6000918252602080832090910192909255600160a060020a0387168152600790915260409020805490610c36906000198301611001565b50600093845260086020526040808520859055908452909220555050565b6000610c608383610f01565b50600160a060020a039091166000908152600760209081526040808320805460018101825590845282842081018590559383526008909152902055565b600080610cb285600160a060020a0316610f91565b1515610cc15760019150610e01565b6040517f150b7a020000000000000000000000000000000000000000000000000000000081523360048201818152600160a060020a03898116602485015260448401889052608060648501908152875160848601528751918a169463150b7a0294938c938b938b93909160a490910190602085019080838360005b83811015610d54578181015183820152602001610d3c565b50505050905090810190601f168015610d815780820380516001836020036101000a031916815260200191505b5095505050505050602060405180830381600087803b158015610da357600080fd5b505af1158015610db7573d6000803e3d6000fd5b505050506040513d6020811015610dcd57600080fd5b5051600160e060020a031981167f150b7a020000000000000000000000000000000000000000000000000000000014925090505b50949350505050565b610e148282610f99565b600980546000838152600a60205260408120829055600182018355919091527f6e1540171b6c0c960b71a7020d9f60077f6af931a8bbf590da0223dacf75c7af015550565b81600160a060020a0316610e6c826107cf565b600160a060020a031614610e7f57600080fd5b600160a060020a038216600090815260036020526040902054610ea990600163ffffffff610eef16565b600160a060020a03909216600090815260036020908152604080832094909455918152600190915220805473ffffffffffffffffffffffffffffffffffffffff19169055565b600082821115610efb57fe5b50900390565b600081815260016020526040902054600160a060020a031615610f2357600080fd5b6000818152600160208181526040808420805473ffffffffffffffffffffffffffffffffffffffff1916600160a060020a0388169081179091558452600390915290912054610f7191610ff4565b600160a060020a0390921660009081526003602052604090209190915550565b6000903b1190565b600160a060020a0382161515610fae57600080fd5b610fb88282610c54565b6040518190600160a060020a038416906000907fddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef908290a45050565b818101828110156107f357fe5b8154818355818111156107785760008381526020902061077891810190830161055f91905b8082111561103a5760008155600101611026565b50905600a165627a7a723058205b9c52212ecf7b84aff1e47eaa8892cdd6608ae21bef25c19c8b9fd30468f5a80029`
+const MainnetCryptoCardsContractBin = `0x60806040523480156200001157600080fd5b506040516020806200126f833981018060405260208110156200003357600080fd5b5051604080518082018252600b81527f43727970746f43617264730000000000000000000000000000000000000000006020828101919091528251808401909352600383527f43434300000000000000000000000000000000000000000000000000000000008382015290919082908290620000d5907f01ffc9a7000000000000000000000000000000000000000000000000000000009062000183811b901c565b620000ed6380ac58cd60e01b6200018360201b60201c565b6200010563780e9d6360e01b6200018360201b60201c565b81516200011a906009906020850190620001f0565b5080516200013090600a906020840190620001f0565b5062000149635b5e139f60e01b6200018360201b60201c565b5050600d8054336001600160a01b031991821617909155600e80549091166001600160a01b03949094169390931790925550620002959050565b7fffffffff000000000000000000000000000000000000000000000000000000008082161415620001b357600080fd5b7fffffffff00000000000000000000000000000000000000000000000000000000166000908152602081905260409020805460ff19166001179055565b828054600181600116156101000203166002900490600052602060002090601f016020900481019282601f106200023357805160ff191683800117855562000263565b8280016001018555821562000263579182015b828111156200026357825182559160200191906001019062000246565b506200027192915062000275565b5090565b6200029291905b808211156200027157600081556001016200027c565b90565b610fca80620002a56000396000f3fe608060405234801561001057600080fd5b50600436106101215760003560e01c80634f6ccce7116100ad578063a22cb46511610071578063a22cb46514610384578063b88d4fde146103b2578063bcfaa79d14610478578063c87b56dd1461049e578063e985e9c5146104bb57610121565b80634f6ccce7146102ff5780636352211e1461031c57806370a08231146103395780639267daba1461035f57806395d89b411461037c57610121565b8063116191b6116100f4578063116191b61461024557806318160ddd1461024d57806323b872dd146102675780632f745c591461029d57806342842e0e146102c957610121565b806301ffc9a71461012657806306fdde0314610161578063081812fc146101de578063095ea7b314610217575b600080fd5b61014d6004803603602081101561013c57600080fd5b50356001600160e01b0319166104e9565b604080519115158252519081900360200190f35b610169610508565b6040805160208082528351818301528351919283929083019185019080838360005b838110156101a357818101518382015260200161018b565b50505050905090810190601f1680156101d05780820380516001836020036101000a031916815260200191505b509250505060405180910390f35b6101fb600480360360208110156101f457600080fd5b503561059f565b604080516001600160a01b039092168252519081900360200190f35b6102436004803603604081101561022d57600080fd5b506001600160a01b0381351690602001356105cf565b005b6101fb61067c565b61025561068b565b60408051918252519081900360200190f35b6102436004803603606081101561027d57600080fd5b506001600160a01b03813581169160208101359091169060400135610691565b610255600480360360408110156102b357600080fd5b506001600160a01b0381351690602001356106b4565b610243600480360360608110156102df57600080fd5b506001600160a01b03813581169160208101359091169060400135610701565b6102556004803603602081101561031557600080fd5b503561071c565b6101fb6004803603602081101561033257600080fd5b5035610750565b6102556004803603602081101561034f57600080fd5b50356001600160a01b0316610778565b6102436004803603602081101561037557600080fd5b50356107ae565b6101696107c9565b6102436004803603604081101561039a57600080fd5b506001600160a01b038135169060200135151561082a565b610243600480360360808110156103c857600080fd5b6001600160a01b0382358116926020810135909116916040820135919081019060808101606082013564010000000081111561040357600080fd5b82018360208201111561041557600080fd5b8035906020019184600183028401116401000000008311171561043757600080fd5b91908080601f0160208091040260200160405190810160405280939291908181526020018383808284376000920191909152509295506108ae945050505050565b6102436004803603602081101561048e57600080fd5b50356001600160a01b03166108d4565b610169600480360360208110156104b457600080fd5b503561091d565b61014d600480360360408110156104d157600080fd5b506001600160a01b03813581169160200135166109d0565b6001600160e01b03191660009081526020819052604090205460ff1690565b60098054604080516020601f60026000196101006001881615020190951694909404938401819004810282018101909252828152606093909290918301828280156105945780601f1061056957610100808354040283529160200191610594565b820191906000526020600020905b81548152906001019060200180831161057757829003601f168201915b505050505090505b90565b60006105aa826109fe565b6105b357600080fd5b506000908152600260205260409020546001600160a01b031690565b60006105da82610750565b9050806001600160a01b0316836001600160a01b031614156105fb57600080fd5b336001600160a01b0382161480610617575061061781336109d0565b61062057600080fd5b60008281526002602052604080822080546001600160a01b0319166001600160a01b0387811691821790925591518593918516917f8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b92591a4505050565b600e546001600160a01b031681565b60075490565b61069b3382610a1b565b6106a457600080fd5b6106af838383610a7a565b505050565b60006106bf83610778565b82106106ca57600080fd5b6001600160a01b03831660009081526005602052604090208054839081106106ee57fe5b9060005260206000200154905092915050565b6106af838383604051806020016040528060008152506108ae565b600061072661068b565b821061073157600080fd5b6007828154811061073e57fe5b90600052602060002001549050919050565b6000818152600160205260408120546001600160a01b03168061077257600080fd5b92915050565b60006001600160a01b03821661078d57600080fd5b6001600160a01b038216600090815260036020526040902061077290610a99565b600e546107c69033906001600160a01b031683610701565b50565b600a8054604080516020601f60026000196101006001881615020190951694909404938401819004810282018101909252828152606093909290918301828280156105945780601f1061056957610100808354040283529160200191610594565b6001600160a01b03821633141561084057600080fd5b3360008181526004602090815260408083206001600160a01b03871680855290835292819020805460ff1916861515908117909155815190815290519293927f17307eab39ab6107e8899845ad3d59bd9653f200f220920489ca2b5937696c31929181900390910190a35050565b6108b9848484610691565b6108c584848484610a9d565b6108ce57600080fd5b50505050565b600d546001600160a01b031633146108eb57600080fd5b60005b600581121561091957600061090161068b565b60010190506109108382610bd6565b506001016108ee565b5050565b6060610928826109fe565b61093157600080fd5b6000828152600b602090815260409182902080548351601f6002600019610100600186161502019093169290920491820184900484028101840190945280845290918301828280156109c45780601f10610999576101008083540402835291602001916109c4565b820191906000526020600020905b8154815290600101906020018083116109a757829003601f168201915b50505050509050919050565b6001600160a01b03918216600090815260046020908152604080832093909416825291909152205460ff1690565b6000908152600160205260409020546001600160a01b0316151590565b600080610a2783610750565b9050806001600160a01b0316846001600160a01b03161480610a625750836001600160a01b0316610a578461059f565b6001600160a01b0316145b80610a725750610a7281856109d0565b949350505050565b610a85838383610bf3565b610a8f8382610cd3565b6106af8282610dc8565b5490565b6000610ab1846001600160a01b0316610e06565b610abd57506001610a72565b604051600160e11b630a85bd0102815233600482018181526001600160a01b03888116602485015260448401879052608060648501908152865160848601528651600095928a169463150b7a029490938c938b938b939260a4019060208501908083838e5b83811015610b3a578181015183820152602001610b22565b50505050905090810190601f168015610b675780820380516001836020036101000a031916815260200191505b5095505050505050602060405180830381600087803b158015610b8957600080fd5b505af1158015610b9d573d6000803e3d6000fd5b505050506040513d6020811015610bb357600080fd5b50516001600160e01b031916600160e11b630a85bd010214915050949350505050565b610be08282610e0c565b610bea8282610dc8565b61091981610ead565b826001600160a01b0316610c0682610750565b6001600160a01b031614610c1957600080fd5b6001600160a01b038216610c2c57600080fd5b610c3581610ef1565b6001600160a01b0383166000908152600360205260409020610c5690610f2c565b6001600160a01b0382166000908152600360205260409020610c7790610f43565b60008181526001602052604080822080546001600160a01b0319166001600160a01b0386811691821790925591518493918716917fddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef91a4505050565b6001600160a01b038216600090815260056020526040812054610cfd90600163ffffffff610f4c16565b600083815260066020526040902054909150808214610d98576001600160a01b0384166000908152600560205260408120805484908110610d3a57fe5b906000526020600020015490508060056000876001600160a01b03166001600160a01b031681526020019081526020016000208381548110610d7857fe5b600091825260208083209091019290925591825260069052604090208190555b6001600160a01b0384166000908152600560205260409020805490610dc1906000198301610f61565b5050505050565b6001600160a01b0390911660009081526005602081815260408084208054868652600684529185208290559282526001810183559183529091200155565b3b151590565b6001600160a01b038216610e1f57600080fd5b610e28816109fe565b15610e3257600080fd5b600081815260016020908152604080832080546001600160a01b0319166001600160a01b038716908117909155835260039091529020610e7190610f43565b60405181906001600160a01b038416906000907fddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef908290a45050565b600780546000838152600860205260408120829055600182018355919091527fa66cc928b5edb82af9bd49922954155ab7b0942694bea4ce44661d9a8736c6880155565b6000818152600260205260409020546001600160a01b0316156107c657600090815260026020526040902080546001600160a01b0319169055565b8054610f3f90600163ffffffff610f4c16565b9055565b80546001019055565b600082821115610f5b57600080fd5b50900390565b8154818355818111156106af576000838152602090206106af91810190830161059c91905b80821115610f9a5760008155600101610f86565b509056fea165627a7a72305820663e9c95fbf798c1e6813d5633c2995b36a035eef85b37f4fb6c975ec0fb46890029`
 
 // DeployMainnetCryptoCardsContract deploys a new Ethereum contract, binding an instance of MainnetCryptoCardsContract to it.
 func DeployMainnetCryptoCardsContract(auth *bind.TransactOpts, backend bind.ContractBackend, _gateway common.Address) (common.Address, *types.Transaction, *MainnetCryptoCardsContract, error) {
@@ -188,82 +175,30 @@ func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractTransactorRaw) Tran
 	return _MainnetCryptoCardsContract.Contract.contract.Transact(opts, method, params...)
 }
 
-// InterfaceIdERC165 is a free data retrieval call binding the contract method 0x19fa8f50.
-//
-// Solidity: function InterfaceId_ERC165() constant returns(bytes4)
-func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractCaller) InterfaceIdERC165(opts *bind.CallOpts) ([4]byte, error) {
-	var (
-		ret0 = new([4]byte)
-	)
-	out := ret0
-	err := _MainnetCryptoCardsContract.contract.Call(opts, out, "InterfaceId_ERC165")
-	return *ret0, err
-}
-
-// InterfaceIdERC165 is a free data retrieval call binding the contract method 0x19fa8f50.
-//
-// Solidity: function InterfaceId_ERC165() constant returns(bytes4)
-func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractSession) InterfaceIdERC165() ([4]byte, error) {
-	return _MainnetCryptoCardsContract.Contract.InterfaceIdERC165(&_MainnetCryptoCardsContract.CallOpts)
-}
-
-// InterfaceIdERC165 is a free data retrieval call binding the contract method 0x19fa8f50.
-//
-// Solidity: function InterfaceId_ERC165() constant returns(bytes4)
-func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractCallerSession) InterfaceIdERC165() ([4]byte, error) {
-	return _MainnetCryptoCardsContract.Contract.InterfaceIdERC165(&_MainnetCryptoCardsContract.CallOpts)
-}
-
 // BalanceOf is a free data retrieval call binding the contract method 0x70a08231.
 //
-// Solidity: function balanceOf(_owner address) constant returns(uint256)
-func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractCaller) BalanceOf(opts *bind.CallOpts, _owner common.Address) (*big.Int, error) {
+// Solidity: function balanceOf(owner address) constant returns(uint256)
+func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractCaller) BalanceOf(opts *bind.CallOpts, owner common.Address) (*big.Int, error) {
 	var (
 		ret0 = new(*big.Int)
 	)
 	out := ret0
-	err := _MainnetCryptoCardsContract.contract.Call(opts, out, "balanceOf", _owner)
+	err := _MainnetCryptoCardsContract.contract.Call(opts, out, "balanceOf", owner)
 	return *ret0, err
 }
 
 // BalanceOf is a free data retrieval call binding the contract method 0x70a08231.
 //
-// Solidity: function balanceOf(_owner address) constant returns(uint256)
-func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractSession) BalanceOf(_owner common.Address) (*big.Int, error) {
-	return _MainnetCryptoCardsContract.Contract.BalanceOf(&_MainnetCryptoCardsContract.CallOpts, _owner)
+// Solidity: function balanceOf(owner address) constant returns(uint256)
+func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractSession) BalanceOf(owner common.Address) (*big.Int, error) {
+	return _MainnetCryptoCardsContract.Contract.BalanceOf(&_MainnetCryptoCardsContract.CallOpts, owner)
 }
 
 // BalanceOf is a free data retrieval call binding the contract method 0x70a08231.
 //
-// Solidity: function balanceOf(_owner address) constant returns(uint256)
-func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractCallerSession) BalanceOf(_owner common.Address) (*big.Int, error) {
-	return _MainnetCryptoCardsContract.Contract.BalanceOf(&_MainnetCryptoCardsContract.CallOpts, _owner)
-}
-
-// Exists is a free data retrieval call binding the contract method 0x4f558e79.
-//
-// Solidity: function exists(_tokenId uint256) constant returns(bool)
-func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractCaller) Exists(opts *bind.CallOpts, _tokenId *big.Int) (bool, error) {
-	var (
-		ret0 = new(bool)
-	)
-	out := ret0
-	err := _MainnetCryptoCardsContract.contract.Call(opts, out, "exists", _tokenId)
-	return *ret0, err
-}
-
-// Exists is a free data retrieval call binding the contract method 0x4f558e79.
-//
-// Solidity: function exists(_tokenId uint256) constant returns(bool)
-func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractSession) Exists(_tokenId *big.Int) (bool, error) {
-	return _MainnetCryptoCardsContract.Contract.Exists(&_MainnetCryptoCardsContract.CallOpts, _tokenId)
-}
-
-// Exists is a free data retrieval call binding the contract method 0x4f558e79.
-//
-// Solidity: function exists(_tokenId uint256) constant returns(bool)
-func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractCallerSession) Exists(_tokenId *big.Int) (bool, error) {
-	return _MainnetCryptoCardsContract.Contract.Exists(&_MainnetCryptoCardsContract.CallOpts, _tokenId)
+// Solidity: function balanceOf(owner address) constant returns(uint256)
+func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractCallerSession) BalanceOf(owner common.Address) (*big.Int, error) {
+	return _MainnetCryptoCardsContract.Contract.BalanceOf(&_MainnetCryptoCardsContract.CallOpts, owner)
 }
 
 // Gateway is a free data retrieval call binding the contract method 0x116191b6.
@@ -294,54 +229,54 @@ func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractCallerSession) Gate
 
 // GetApproved is a free data retrieval call binding the contract method 0x081812fc.
 //
-// Solidity: function getApproved(_tokenId uint256) constant returns(address)
-func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractCaller) GetApproved(opts *bind.CallOpts, _tokenId *big.Int) (common.Address, error) {
+// Solidity: function getApproved(tokenId uint256) constant returns(address)
+func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractCaller) GetApproved(opts *bind.CallOpts, tokenId *big.Int) (common.Address, error) {
 	var (
 		ret0 = new(common.Address)
 	)
 	out := ret0
-	err := _MainnetCryptoCardsContract.contract.Call(opts, out, "getApproved", _tokenId)
+	err := _MainnetCryptoCardsContract.contract.Call(opts, out, "getApproved", tokenId)
 	return *ret0, err
 }
 
 // GetApproved is a free data retrieval call binding the contract method 0x081812fc.
 //
-// Solidity: function getApproved(_tokenId uint256) constant returns(address)
-func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractSession) GetApproved(_tokenId *big.Int) (common.Address, error) {
-	return _MainnetCryptoCardsContract.Contract.GetApproved(&_MainnetCryptoCardsContract.CallOpts, _tokenId)
+// Solidity: function getApproved(tokenId uint256) constant returns(address)
+func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractSession) GetApproved(tokenId *big.Int) (common.Address, error) {
+	return _MainnetCryptoCardsContract.Contract.GetApproved(&_MainnetCryptoCardsContract.CallOpts, tokenId)
 }
 
 // GetApproved is a free data retrieval call binding the contract method 0x081812fc.
 //
-// Solidity: function getApproved(_tokenId uint256) constant returns(address)
-func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractCallerSession) GetApproved(_tokenId *big.Int) (common.Address, error) {
-	return _MainnetCryptoCardsContract.Contract.GetApproved(&_MainnetCryptoCardsContract.CallOpts, _tokenId)
+// Solidity: function getApproved(tokenId uint256) constant returns(address)
+func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractCallerSession) GetApproved(tokenId *big.Int) (common.Address, error) {
+	return _MainnetCryptoCardsContract.Contract.GetApproved(&_MainnetCryptoCardsContract.CallOpts, tokenId)
 }
 
 // IsApprovedForAll is a free data retrieval call binding the contract method 0xe985e9c5.
 //
-// Solidity: function isApprovedForAll(_owner address, _operator address) constant returns(bool)
-func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractCaller) IsApprovedForAll(opts *bind.CallOpts, _owner common.Address, _operator common.Address) (bool, error) {
+// Solidity: function isApprovedForAll(owner address, operator address) constant returns(bool)
+func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractCaller) IsApprovedForAll(opts *bind.CallOpts, owner common.Address, operator common.Address) (bool, error) {
 	var (
 		ret0 = new(bool)
 	)
 	out := ret0
-	err := _MainnetCryptoCardsContract.contract.Call(opts, out, "isApprovedForAll", _owner, _operator)
+	err := _MainnetCryptoCardsContract.contract.Call(opts, out, "isApprovedForAll", owner, operator)
 	return *ret0, err
 }
 
 // IsApprovedForAll is a free data retrieval call binding the contract method 0xe985e9c5.
 //
-// Solidity: function isApprovedForAll(_owner address, _operator address) constant returns(bool)
-func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractSession) IsApprovedForAll(_owner common.Address, _operator common.Address) (bool, error) {
-	return _MainnetCryptoCardsContract.Contract.IsApprovedForAll(&_MainnetCryptoCardsContract.CallOpts, _owner, _operator)
+// Solidity: function isApprovedForAll(owner address, operator address) constant returns(bool)
+func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractSession) IsApprovedForAll(owner common.Address, operator common.Address) (bool, error) {
+	return _MainnetCryptoCardsContract.Contract.IsApprovedForAll(&_MainnetCryptoCardsContract.CallOpts, owner, operator)
 }
 
 // IsApprovedForAll is a free data retrieval call binding the contract method 0xe985e9c5.
 //
-// Solidity: function isApprovedForAll(_owner address, _operator address) constant returns(bool)
-func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractCallerSession) IsApprovedForAll(_owner common.Address, _operator common.Address) (bool, error) {
-	return _MainnetCryptoCardsContract.Contract.IsApprovedForAll(&_MainnetCryptoCardsContract.CallOpts, _owner, _operator)
+// Solidity: function isApprovedForAll(owner address, operator address) constant returns(bool)
+func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractCallerSession) IsApprovedForAll(owner common.Address, operator common.Address) (bool, error) {
+	return _MainnetCryptoCardsContract.Contract.IsApprovedForAll(&_MainnetCryptoCardsContract.CallOpts, owner, operator)
 }
 
 // Name is a free data retrieval call binding the contract method 0x06fdde03.
@@ -372,54 +307,54 @@ func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractCallerSession) Name
 
 // OwnerOf is a free data retrieval call binding the contract method 0x6352211e.
 //
-// Solidity: function ownerOf(_tokenId uint256) constant returns(address)
-func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractCaller) OwnerOf(opts *bind.CallOpts, _tokenId *big.Int) (common.Address, error) {
+// Solidity: function ownerOf(tokenId uint256) constant returns(address)
+func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractCaller) OwnerOf(opts *bind.CallOpts, tokenId *big.Int) (common.Address, error) {
 	var (
 		ret0 = new(common.Address)
 	)
 	out := ret0
-	err := _MainnetCryptoCardsContract.contract.Call(opts, out, "ownerOf", _tokenId)
+	err := _MainnetCryptoCardsContract.contract.Call(opts, out, "ownerOf", tokenId)
 	return *ret0, err
 }
 
 // OwnerOf is a free data retrieval call binding the contract method 0x6352211e.
 //
-// Solidity: function ownerOf(_tokenId uint256) constant returns(address)
-func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractSession) OwnerOf(_tokenId *big.Int) (common.Address, error) {
-	return _MainnetCryptoCardsContract.Contract.OwnerOf(&_MainnetCryptoCardsContract.CallOpts, _tokenId)
+// Solidity: function ownerOf(tokenId uint256) constant returns(address)
+func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractSession) OwnerOf(tokenId *big.Int) (common.Address, error) {
+	return _MainnetCryptoCardsContract.Contract.OwnerOf(&_MainnetCryptoCardsContract.CallOpts, tokenId)
 }
 
 // OwnerOf is a free data retrieval call binding the contract method 0x6352211e.
 //
-// Solidity: function ownerOf(_tokenId uint256) constant returns(address)
-func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractCallerSession) OwnerOf(_tokenId *big.Int) (common.Address, error) {
-	return _MainnetCryptoCardsContract.Contract.OwnerOf(&_MainnetCryptoCardsContract.CallOpts, _tokenId)
+// Solidity: function ownerOf(tokenId uint256) constant returns(address)
+func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractCallerSession) OwnerOf(tokenId *big.Int) (common.Address, error) {
+	return _MainnetCryptoCardsContract.Contract.OwnerOf(&_MainnetCryptoCardsContract.CallOpts, tokenId)
 }
 
 // SupportsInterface is a free data retrieval call binding the contract method 0x01ffc9a7.
 //
-// Solidity: function supportsInterface(_interfaceId bytes4) constant returns(bool)
-func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractCaller) SupportsInterface(opts *bind.CallOpts, _interfaceId [4]byte) (bool, error) {
+// Solidity: function supportsInterface(interfaceId bytes4) constant returns(bool)
+func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractCaller) SupportsInterface(opts *bind.CallOpts, interfaceId [4]byte) (bool, error) {
 	var (
 		ret0 = new(bool)
 	)
 	out := ret0
-	err := _MainnetCryptoCardsContract.contract.Call(opts, out, "supportsInterface", _interfaceId)
+	err := _MainnetCryptoCardsContract.contract.Call(opts, out, "supportsInterface", interfaceId)
 	return *ret0, err
 }
 
 // SupportsInterface is a free data retrieval call binding the contract method 0x01ffc9a7.
 //
-// Solidity: function supportsInterface(_interfaceId bytes4) constant returns(bool)
-func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractSession) SupportsInterface(_interfaceId [4]byte) (bool, error) {
-	return _MainnetCryptoCardsContract.Contract.SupportsInterface(&_MainnetCryptoCardsContract.CallOpts, _interfaceId)
+// Solidity: function supportsInterface(interfaceId bytes4) constant returns(bool)
+func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractSession) SupportsInterface(interfaceId [4]byte) (bool, error) {
+	return _MainnetCryptoCardsContract.Contract.SupportsInterface(&_MainnetCryptoCardsContract.CallOpts, interfaceId)
 }
 
 // SupportsInterface is a free data retrieval call binding the contract method 0x01ffc9a7.
 //
-// Solidity: function supportsInterface(_interfaceId bytes4) constant returns(bool)
-func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractCallerSession) SupportsInterface(_interfaceId [4]byte) (bool, error) {
-	return _MainnetCryptoCardsContract.Contract.SupportsInterface(&_MainnetCryptoCardsContract.CallOpts, _interfaceId)
+// Solidity: function supportsInterface(interfaceId bytes4) constant returns(bool)
+func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractCallerSession) SupportsInterface(interfaceId [4]byte) (bool, error) {
+	return _MainnetCryptoCardsContract.Contract.SupportsInterface(&_MainnetCryptoCardsContract.CallOpts, interfaceId)
 }
 
 // Symbol is a free data retrieval call binding the contract method 0x95d89b41.
@@ -450,80 +385,80 @@ func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractCallerSession) Symb
 
 // TokenByIndex is a free data retrieval call binding the contract method 0x4f6ccce7.
 //
-// Solidity: function tokenByIndex(_index uint256) constant returns(uint256)
-func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractCaller) TokenByIndex(opts *bind.CallOpts, _index *big.Int) (*big.Int, error) {
+// Solidity: function tokenByIndex(index uint256) constant returns(uint256)
+func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractCaller) TokenByIndex(opts *bind.CallOpts, index *big.Int) (*big.Int, error) {
 	var (
 		ret0 = new(*big.Int)
 	)
 	out := ret0
-	err := _MainnetCryptoCardsContract.contract.Call(opts, out, "tokenByIndex", _index)
+	err := _MainnetCryptoCardsContract.contract.Call(opts, out, "tokenByIndex", index)
 	return *ret0, err
 }
 
 // TokenByIndex is a free data retrieval call binding the contract method 0x4f6ccce7.
 //
-// Solidity: function tokenByIndex(_index uint256) constant returns(uint256)
-func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractSession) TokenByIndex(_index *big.Int) (*big.Int, error) {
-	return _MainnetCryptoCardsContract.Contract.TokenByIndex(&_MainnetCryptoCardsContract.CallOpts, _index)
+// Solidity: function tokenByIndex(index uint256) constant returns(uint256)
+func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractSession) TokenByIndex(index *big.Int) (*big.Int, error) {
+	return _MainnetCryptoCardsContract.Contract.TokenByIndex(&_MainnetCryptoCardsContract.CallOpts, index)
 }
 
 // TokenByIndex is a free data retrieval call binding the contract method 0x4f6ccce7.
 //
-// Solidity: function tokenByIndex(_index uint256) constant returns(uint256)
-func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractCallerSession) TokenByIndex(_index *big.Int) (*big.Int, error) {
-	return _MainnetCryptoCardsContract.Contract.TokenByIndex(&_MainnetCryptoCardsContract.CallOpts, _index)
+// Solidity: function tokenByIndex(index uint256) constant returns(uint256)
+func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractCallerSession) TokenByIndex(index *big.Int) (*big.Int, error) {
+	return _MainnetCryptoCardsContract.Contract.TokenByIndex(&_MainnetCryptoCardsContract.CallOpts, index)
 }
 
 // TokenOfOwnerByIndex is a free data retrieval call binding the contract method 0x2f745c59.
 //
-// Solidity: function tokenOfOwnerByIndex(_owner address, _index uint256) constant returns(uint256)
-func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractCaller) TokenOfOwnerByIndex(opts *bind.CallOpts, _owner common.Address, _index *big.Int) (*big.Int, error) {
+// Solidity: function tokenOfOwnerByIndex(owner address, index uint256) constant returns(uint256)
+func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractCaller) TokenOfOwnerByIndex(opts *bind.CallOpts, owner common.Address, index *big.Int) (*big.Int, error) {
 	var (
 		ret0 = new(*big.Int)
 	)
 	out := ret0
-	err := _MainnetCryptoCardsContract.contract.Call(opts, out, "tokenOfOwnerByIndex", _owner, _index)
+	err := _MainnetCryptoCardsContract.contract.Call(opts, out, "tokenOfOwnerByIndex", owner, index)
 	return *ret0, err
 }
 
 // TokenOfOwnerByIndex is a free data retrieval call binding the contract method 0x2f745c59.
 //
-// Solidity: function tokenOfOwnerByIndex(_owner address, _index uint256) constant returns(uint256)
-func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractSession) TokenOfOwnerByIndex(_owner common.Address, _index *big.Int) (*big.Int, error) {
-	return _MainnetCryptoCardsContract.Contract.TokenOfOwnerByIndex(&_MainnetCryptoCardsContract.CallOpts, _owner, _index)
+// Solidity: function tokenOfOwnerByIndex(owner address, index uint256) constant returns(uint256)
+func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractSession) TokenOfOwnerByIndex(owner common.Address, index *big.Int) (*big.Int, error) {
+	return _MainnetCryptoCardsContract.Contract.TokenOfOwnerByIndex(&_MainnetCryptoCardsContract.CallOpts, owner, index)
 }
 
 // TokenOfOwnerByIndex is a free data retrieval call binding the contract method 0x2f745c59.
 //
-// Solidity: function tokenOfOwnerByIndex(_owner address, _index uint256) constant returns(uint256)
-func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractCallerSession) TokenOfOwnerByIndex(_owner common.Address, _index *big.Int) (*big.Int, error) {
-	return _MainnetCryptoCardsContract.Contract.TokenOfOwnerByIndex(&_MainnetCryptoCardsContract.CallOpts, _owner, _index)
+// Solidity: function tokenOfOwnerByIndex(owner address, index uint256) constant returns(uint256)
+func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractCallerSession) TokenOfOwnerByIndex(owner common.Address, index *big.Int) (*big.Int, error) {
+	return _MainnetCryptoCardsContract.Contract.TokenOfOwnerByIndex(&_MainnetCryptoCardsContract.CallOpts, owner, index)
 }
 
 // TokenURI is a free data retrieval call binding the contract method 0xc87b56dd.
 //
-// Solidity: function tokenURI(_tokenId uint256) constant returns(string)
-func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractCaller) TokenURI(opts *bind.CallOpts, _tokenId *big.Int) (string, error) {
+// Solidity: function tokenURI(tokenId uint256) constant returns(string)
+func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractCaller) TokenURI(opts *bind.CallOpts, tokenId *big.Int) (string, error) {
 	var (
 		ret0 = new(string)
 	)
 	out := ret0
-	err := _MainnetCryptoCardsContract.contract.Call(opts, out, "tokenURI", _tokenId)
+	err := _MainnetCryptoCardsContract.contract.Call(opts, out, "tokenURI", tokenId)
 	return *ret0, err
 }
 
 // TokenURI is a free data retrieval call binding the contract method 0xc87b56dd.
 //
-// Solidity: function tokenURI(_tokenId uint256) constant returns(string)
-func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractSession) TokenURI(_tokenId *big.Int) (string, error) {
-	return _MainnetCryptoCardsContract.Contract.TokenURI(&_MainnetCryptoCardsContract.CallOpts, _tokenId)
+// Solidity: function tokenURI(tokenId uint256) constant returns(string)
+func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractSession) TokenURI(tokenId *big.Int) (string, error) {
+	return _MainnetCryptoCardsContract.Contract.TokenURI(&_MainnetCryptoCardsContract.CallOpts, tokenId)
 }
 
 // TokenURI is a free data retrieval call binding the contract method 0xc87b56dd.
 //
-// Solidity: function tokenURI(_tokenId uint256) constant returns(string)
-func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractCallerSession) TokenURI(_tokenId *big.Int) (string, error) {
-	return _MainnetCryptoCardsContract.Contract.TokenURI(&_MainnetCryptoCardsContract.CallOpts, _tokenId)
+// Solidity: function tokenURI(tokenId uint256) constant returns(string)
+func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractCallerSession) TokenURI(tokenId *big.Int) (string, error) {
+	return _MainnetCryptoCardsContract.Contract.TokenURI(&_MainnetCryptoCardsContract.CallOpts, tokenId)
 }
 
 // TotalSupply is a free data retrieval call binding the contract method 0x18160ddd.
@@ -554,23 +489,23 @@ func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractCallerSession) Tota
 
 // Approve is a paid mutator transaction binding the contract method 0x095ea7b3.
 //
-// Solidity: function approve(_to address, _tokenId uint256) returns()
-func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractTransactor) Approve(opts *bind.TransactOpts, _to common.Address, _tokenId *big.Int) (*types.Transaction, error) {
-	return _MainnetCryptoCardsContract.contract.Transact(opts, "approve", _to, _tokenId)
+// Solidity: function approve(to address, tokenId uint256) returns()
+func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractTransactor) Approve(opts *bind.TransactOpts, to common.Address, tokenId *big.Int) (*types.Transaction, error) {
+	return _MainnetCryptoCardsContract.contract.Transact(opts, "approve", to, tokenId)
 }
 
 // Approve is a paid mutator transaction binding the contract method 0x095ea7b3.
 //
-// Solidity: function approve(_to address, _tokenId uint256) returns()
-func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractSession) Approve(_to common.Address, _tokenId *big.Int) (*types.Transaction, error) {
-	return _MainnetCryptoCardsContract.Contract.Approve(&_MainnetCryptoCardsContract.TransactOpts, _to, _tokenId)
+// Solidity: function approve(to address, tokenId uint256) returns()
+func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractSession) Approve(to common.Address, tokenId *big.Int) (*types.Transaction, error) {
+	return _MainnetCryptoCardsContract.Contract.Approve(&_MainnetCryptoCardsContract.TransactOpts, to, tokenId)
 }
 
 // Approve is a paid mutator transaction binding the contract method 0x095ea7b3.
 //
-// Solidity: function approve(_to address, _tokenId uint256) returns()
-func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractTransactorSession) Approve(_to common.Address, _tokenId *big.Int) (*types.Transaction, error) {
-	return _MainnetCryptoCardsContract.Contract.Approve(&_MainnetCryptoCardsContract.TransactOpts, _to, _tokenId)
+// Solidity: function approve(to address, tokenId uint256) returns()
+func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractTransactorSession) Approve(to common.Address, tokenId *big.Int) (*types.Transaction, error) {
+	return _MainnetCryptoCardsContract.Contract.Approve(&_MainnetCryptoCardsContract.TransactOpts, to, tokenId)
 }
 
 // DepositToGateway is a paid mutator transaction binding the contract method 0x9267daba.
@@ -617,65 +552,65 @@ func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractTransactorSession) 
 
 // SafeTransferFrom is a paid mutator transaction binding the contract method 0xb88d4fde.
 //
-// Solidity: function safeTransferFrom(_from address, _to address, _tokenId uint256, _data bytes) returns()
-func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractTransactor) SafeTransferFrom(opts *bind.TransactOpts, _from common.Address, _to common.Address, _tokenId *big.Int, _data []byte) (*types.Transaction, error) {
-	return _MainnetCryptoCardsContract.contract.Transact(opts, "safeTransferFrom", _from, _to, _tokenId, _data)
+// Solidity: function safeTransferFrom(from address, to address, tokenId uint256, _data bytes) returns()
+func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractTransactor) SafeTransferFrom(opts *bind.TransactOpts, from common.Address, to common.Address, tokenId *big.Int, _data []byte) (*types.Transaction, error) {
+	return _MainnetCryptoCardsContract.contract.Transact(opts, "safeTransferFrom", from, to, tokenId, _data)
 }
 
 // SafeTransferFrom is a paid mutator transaction binding the contract method 0xb88d4fde.
 //
-// Solidity: function safeTransferFrom(_from address, _to address, _tokenId uint256, _data bytes) returns()
-func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractSession) SafeTransferFrom(_from common.Address, _to common.Address, _tokenId *big.Int, _data []byte) (*types.Transaction, error) {
-	return _MainnetCryptoCardsContract.Contract.SafeTransferFrom(&_MainnetCryptoCardsContract.TransactOpts, _from, _to, _tokenId, _data)
+// Solidity: function safeTransferFrom(from address, to address, tokenId uint256, _data bytes) returns()
+func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractSession) SafeTransferFrom(from common.Address, to common.Address, tokenId *big.Int, _data []byte) (*types.Transaction, error) {
+	return _MainnetCryptoCardsContract.Contract.SafeTransferFrom(&_MainnetCryptoCardsContract.TransactOpts, from, to, tokenId, _data)
 }
 
 // SafeTransferFrom is a paid mutator transaction binding the contract method 0xb88d4fde.
 //
-// Solidity: function safeTransferFrom(_from address, _to address, _tokenId uint256, _data bytes) returns()
-func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractTransactorSession) SafeTransferFrom(_from common.Address, _to common.Address, _tokenId *big.Int, _data []byte) (*types.Transaction, error) {
-	return _MainnetCryptoCardsContract.Contract.SafeTransferFrom(&_MainnetCryptoCardsContract.TransactOpts, _from, _to, _tokenId, _data)
+// Solidity: function safeTransferFrom(from address, to address, tokenId uint256, _data bytes) returns()
+func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractTransactorSession) SafeTransferFrom(from common.Address, to common.Address, tokenId *big.Int, _data []byte) (*types.Transaction, error) {
+	return _MainnetCryptoCardsContract.Contract.SafeTransferFrom(&_MainnetCryptoCardsContract.TransactOpts, from, to, tokenId, _data)
 }
 
 // SetApprovalForAll is a paid mutator transaction binding the contract method 0xa22cb465.
 //
-// Solidity: function setApprovalForAll(_to address, _approved bool) returns()
-func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractTransactor) SetApprovalForAll(opts *bind.TransactOpts, _to common.Address, _approved bool) (*types.Transaction, error) {
-	return _MainnetCryptoCardsContract.contract.Transact(opts, "setApprovalForAll", _to, _approved)
+// Solidity: function setApprovalForAll(to address, approved bool) returns()
+func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractTransactor) SetApprovalForAll(opts *bind.TransactOpts, to common.Address, approved bool) (*types.Transaction, error) {
+	return _MainnetCryptoCardsContract.contract.Transact(opts, "setApprovalForAll", to, approved)
 }
 
 // SetApprovalForAll is a paid mutator transaction binding the contract method 0xa22cb465.
 //
-// Solidity: function setApprovalForAll(_to address, _approved bool) returns()
-func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractSession) SetApprovalForAll(_to common.Address, _approved bool) (*types.Transaction, error) {
-	return _MainnetCryptoCardsContract.Contract.SetApprovalForAll(&_MainnetCryptoCardsContract.TransactOpts, _to, _approved)
+// Solidity: function setApprovalForAll(to address, approved bool) returns()
+func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractSession) SetApprovalForAll(to common.Address, approved bool) (*types.Transaction, error) {
+	return _MainnetCryptoCardsContract.Contract.SetApprovalForAll(&_MainnetCryptoCardsContract.TransactOpts, to, approved)
 }
 
 // SetApprovalForAll is a paid mutator transaction binding the contract method 0xa22cb465.
 //
-// Solidity: function setApprovalForAll(_to address, _approved bool) returns()
-func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractTransactorSession) SetApprovalForAll(_to common.Address, _approved bool) (*types.Transaction, error) {
-	return _MainnetCryptoCardsContract.Contract.SetApprovalForAll(&_MainnetCryptoCardsContract.TransactOpts, _to, _approved)
+// Solidity: function setApprovalForAll(to address, approved bool) returns()
+func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractTransactorSession) SetApprovalForAll(to common.Address, approved bool) (*types.Transaction, error) {
+	return _MainnetCryptoCardsContract.Contract.SetApprovalForAll(&_MainnetCryptoCardsContract.TransactOpts, to, approved)
 }
 
 // TransferFrom is a paid mutator transaction binding the contract method 0x23b872dd.
 //
-// Solidity: function transferFrom(_from address, _to address, _tokenId uint256) returns()
-func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractTransactor) TransferFrom(opts *bind.TransactOpts, _from common.Address, _to common.Address, _tokenId *big.Int) (*types.Transaction, error) {
-	return _MainnetCryptoCardsContract.contract.Transact(opts, "transferFrom", _from, _to, _tokenId)
+// Solidity: function transferFrom(from address, to address, tokenId uint256) returns()
+func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractTransactor) TransferFrom(opts *bind.TransactOpts, from common.Address, to common.Address, tokenId *big.Int) (*types.Transaction, error) {
+	return _MainnetCryptoCardsContract.contract.Transact(opts, "transferFrom", from, to, tokenId)
 }
 
 // TransferFrom is a paid mutator transaction binding the contract method 0x23b872dd.
 //
-// Solidity: function transferFrom(_from address, _to address, _tokenId uint256) returns()
-func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractSession) TransferFrom(_from common.Address, _to common.Address, _tokenId *big.Int) (*types.Transaction, error) {
-	return _MainnetCryptoCardsContract.Contract.TransferFrom(&_MainnetCryptoCardsContract.TransactOpts, _from, _to, _tokenId)
+// Solidity: function transferFrom(from address, to address, tokenId uint256) returns()
+func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractSession) TransferFrom(from common.Address, to common.Address, tokenId *big.Int) (*types.Transaction, error) {
+	return _MainnetCryptoCardsContract.Contract.TransferFrom(&_MainnetCryptoCardsContract.TransactOpts, from, to, tokenId)
 }
 
 // TransferFrom is a paid mutator transaction binding the contract method 0x23b872dd.
 //
-// Solidity: function transferFrom(_from address, _to address, _tokenId uint256) returns()
-func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractTransactorSession) TransferFrom(_from common.Address, _to common.Address, _tokenId *big.Int) (*types.Transaction, error) {
-	return _MainnetCryptoCardsContract.Contract.TransferFrom(&_MainnetCryptoCardsContract.TransactOpts, _from, _to, _tokenId)
+// Solidity: function transferFrom(from address, to address, tokenId uint256) returns()
+func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractTransactorSession) TransferFrom(from common.Address, to common.Address, tokenId *big.Int) (*types.Transaction, error) {
+	return _MainnetCryptoCardsContract.Contract.TransferFrom(&_MainnetCryptoCardsContract.TransactOpts, from, to, tokenId)
 }
 
 // MainnetCryptoCardsContractApprovalIterator is returned from FilterApproval and is used to iterate over the raw logs and unpacked data for Approval events raised by the MainnetCryptoCardsContract contract.
@@ -755,23 +690,23 @@ type MainnetCryptoCardsContractApproval struct {
 
 // FilterApproval is a free log retrieval operation binding the contract event 0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925.
 //
-// Solidity: e Approval(_owner indexed address, _approved indexed address, _tokenId indexed uint256)
-func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractFilterer) FilterApproval(opts *bind.FilterOpts, _owner []common.Address, _approved []common.Address, _tokenId []*big.Int) (*MainnetCryptoCardsContractApprovalIterator, error) {
+// Solidity: e Approval(owner indexed address, approved indexed address, tokenId indexed uint256)
+func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractFilterer) FilterApproval(opts *bind.FilterOpts, owner []common.Address, approved []common.Address, tokenId []*big.Int) (*MainnetCryptoCardsContractApprovalIterator, error) {
 
-	var _ownerRule []interface{}
-	for _, _ownerItem := range _owner {
-		_ownerRule = append(_ownerRule, _ownerItem)
+	var ownerRule []interface{}
+	for _, ownerItem := range owner {
+		ownerRule = append(ownerRule, ownerItem)
 	}
-	var _approvedRule []interface{}
-	for _, _approvedItem := range _approved {
-		_approvedRule = append(_approvedRule, _approvedItem)
+	var approvedRule []interface{}
+	for _, approvedItem := range approved {
+		approvedRule = append(approvedRule, approvedItem)
 	}
-	var _tokenIdRule []interface{}
-	for _, _tokenIdItem := range _tokenId {
-		_tokenIdRule = append(_tokenIdRule, _tokenIdItem)
+	var tokenIdRule []interface{}
+	for _, tokenIdItem := range tokenId {
+		tokenIdRule = append(tokenIdRule, tokenIdItem)
 	}
 
-	logs, sub, err := _MainnetCryptoCardsContract.contract.FilterLogs(opts, "Approval", _ownerRule, _approvedRule, _tokenIdRule)
+	logs, sub, err := _MainnetCryptoCardsContract.contract.FilterLogs(opts, "Approval", ownerRule, approvedRule, tokenIdRule)
 	if err != nil {
 		return nil, err
 	}
@@ -780,23 +715,23 @@ func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractFilterer) FilterApp
 
 // WatchApproval is a free log subscription operation binding the contract event 0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925.
 //
-// Solidity: e Approval(_owner indexed address, _approved indexed address, _tokenId indexed uint256)
-func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractFilterer) WatchApproval(opts *bind.WatchOpts, sink chan<- *MainnetCryptoCardsContractApproval, _owner []common.Address, _approved []common.Address, _tokenId []*big.Int) (event.Subscription, error) {
+// Solidity: e Approval(owner indexed address, approved indexed address, tokenId indexed uint256)
+func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractFilterer) WatchApproval(opts *bind.WatchOpts, sink chan<- *MainnetCryptoCardsContractApproval, owner []common.Address, approved []common.Address, tokenId []*big.Int) (event.Subscription, error) {
 
-	var _ownerRule []interface{}
-	for _, _ownerItem := range _owner {
-		_ownerRule = append(_ownerRule, _ownerItem)
+	var ownerRule []interface{}
+	for _, ownerItem := range owner {
+		ownerRule = append(ownerRule, ownerItem)
 	}
-	var _approvedRule []interface{}
-	for _, _approvedItem := range _approved {
-		_approvedRule = append(_approvedRule, _approvedItem)
+	var approvedRule []interface{}
+	for _, approvedItem := range approved {
+		approvedRule = append(approvedRule, approvedItem)
 	}
-	var _tokenIdRule []interface{}
-	for _, _tokenIdItem := range _tokenId {
-		_tokenIdRule = append(_tokenIdRule, _tokenIdItem)
+	var tokenIdRule []interface{}
+	for _, tokenIdItem := range tokenId {
+		tokenIdRule = append(tokenIdRule, tokenIdItem)
 	}
 
-	logs, sub, err := _MainnetCryptoCardsContract.contract.WatchLogs(opts, "Approval", _ownerRule, _approvedRule, _tokenIdRule)
+	logs, sub, err := _MainnetCryptoCardsContract.contract.WatchLogs(opts, "Approval", ownerRule, approvedRule, tokenIdRule)
 	if err != nil {
 		return nil, err
 	}
@@ -905,19 +840,19 @@ type MainnetCryptoCardsContractApprovalForAll struct {
 
 // FilterApprovalForAll is a free log retrieval operation binding the contract event 0x17307eab39ab6107e8899845ad3d59bd9653f200f220920489ca2b5937696c31.
 //
-// Solidity: e ApprovalForAll(_owner indexed address, _operator indexed address, _approved bool)
-func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractFilterer) FilterApprovalForAll(opts *bind.FilterOpts, _owner []common.Address, _operator []common.Address) (*MainnetCryptoCardsContractApprovalForAllIterator, error) {
+// Solidity: e ApprovalForAll(owner indexed address, operator indexed address, approved bool)
+func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractFilterer) FilterApprovalForAll(opts *bind.FilterOpts, owner []common.Address, operator []common.Address) (*MainnetCryptoCardsContractApprovalForAllIterator, error) {
 
-	var _ownerRule []interface{}
-	for _, _ownerItem := range _owner {
-		_ownerRule = append(_ownerRule, _ownerItem)
+	var ownerRule []interface{}
+	for _, ownerItem := range owner {
+		ownerRule = append(ownerRule, ownerItem)
 	}
-	var _operatorRule []interface{}
-	for _, _operatorItem := range _operator {
-		_operatorRule = append(_operatorRule, _operatorItem)
+	var operatorRule []interface{}
+	for _, operatorItem := range operator {
+		operatorRule = append(operatorRule, operatorItem)
 	}
 
-	logs, sub, err := _MainnetCryptoCardsContract.contract.FilterLogs(opts, "ApprovalForAll", _ownerRule, _operatorRule)
+	logs, sub, err := _MainnetCryptoCardsContract.contract.FilterLogs(opts, "ApprovalForAll", ownerRule, operatorRule)
 	if err != nil {
 		return nil, err
 	}
@@ -926,19 +861,19 @@ func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractFilterer) FilterApp
 
 // WatchApprovalForAll is a free log subscription operation binding the contract event 0x17307eab39ab6107e8899845ad3d59bd9653f200f220920489ca2b5937696c31.
 //
-// Solidity: e ApprovalForAll(_owner indexed address, _operator indexed address, _approved bool)
-func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractFilterer) WatchApprovalForAll(opts *bind.WatchOpts, sink chan<- *MainnetCryptoCardsContractApprovalForAll, _owner []common.Address, _operator []common.Address) (event.Subscription, error) {
+// Solidity: e ApprovalForAll(owner indexed address, operator indexed address, approved bool)
+func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractFilterer) WatchApprovalForAll(opts *bind.WatchOpts, sink chan<- *MainnetCryptoCardsContractApprovalForAll, owner []common.Address, operator []common.Address) (event.Subscription, error) {
 
-	var _ownerRule []interface{}
-	for _, _ownerItem := range _owner {
-		_ownerRule = append(_ownerRule, _ownerItem)
+	var ownerRule []interface{}
+	for _, ownerItem := range owner {
+		ownerRule = append(ownerRule, ownerItem)
 	}
-	var _operatorRule []interface{}
-	for _, _operatorItem := range _operator {
-		_operatorRule = append(_operatorRule, _operatorItem)
+	var operatorRule []interface{}
+	for _, operatorItem := range operator {
+		operatorRule = append(operatorRule, operatorItem)
 	}
 
-	logs, sub, err := _MainnetCryptoCardsContract.contract.WatchLogs(opts, "ApprovalForAll", _ownerRule, _operatorRule)
+	logs, sub, err := _MainnetCryptoCardsContract.contract.WatchLogs(opts, "ApprovalForAll", ownerRule, operatorRule)
 	if err != nil {
 		return nil, err
 	}
@@ -1047,23 +982,23 @@ type MainnetCryptoCardsContractTransfer struct {
 
 // FilterTransfer is a free log retrieval operation binding the contract event 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef.
 //
-// Solidity: e Transfer(_from indexed address, _to indexed address, _tokenId indexed uint256)
-func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractFilterer) FilterTransfer(opts *bind.FilterOpts, _from []common.Address, _to []common.Address, _tokenId []*big.Int) (*MainnetCryptoCardsContractTransferIterator, error) {
+// Solidity: e Transfer(from indexed address, to indexed address, tokenId indexed uint256)
+func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractFilterer) FilterTransfer(opts *bind.FilterOpts, from []common.Address, to []common.Address, tokenId []*big.Int) (*MainnetCryptoCardsContractTransferIterator, error) {
 
-	var _fromRule []interface{}
-	for _, _fromItem := range _from {
-		_fromRule = append(_fromRule, _fromItem)
+	var fromRule []interface{}
+	for _, fromItem := range from {
+		fromRule = append(fromRule, fromItem)
 	}
-	var _toRule []interface{}
-	for _, _toItem := range _to {
-		_toRule = append(_toRule, _toItem)
+	var toRule []interface{}
+	for _, toItem := range to {
+		toRule = append(toRule, toItem)
 	}
-	var _tokenIdRule []interface{}
-	for _, _tokenIdItem := range _tokenId {
-		_tokenIdRule = append(_tokenIdRule, _tokenIdItem)
+	var tokenIdRule []interface{}
+	for _, tokenIdItem := range tokenId {
+		tokenIdRule = append(tokenIdRule, tokenIdItem)
 	}
 
-	logs, sub, err := _MainnetCryptoCardsContract.contract.FilterLogs(opts, "Transfer", _fromRule, _toRule, _tokenIdRule)
+	logs, sub, err := _MainnetCryptoCardsContract.contract.FilterLogs(opts, "Transfer", fromRule, toRule, tokenIdRule)
 	if err != nil {
 		return nil, err
 	}
@@ -1072,23 +1007,23 @@ func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractFilterer) FilterTra
 
 // WatchTransfer is a free log subscription operation binding the contract event 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef.
 //
-// Solidity: e Transfer(_from indexed address, _to indexed address, _tokenId indexed uint256)
-func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractFilterer) WatchTransfer(opts *bind.WatchOpts, sink chan<- *MainnetCryptoCardsContractTransfer, _from []common.Address, _to []common.Address, _tokenId []*big.Int) (event.Subscription, error) {
+// Solidity: e Transfer(from indexed address, to indexed address, tokenId indexed uint256)
+func (_MainnetCryptoCardsContract *MainnetCryptoCardsContractFilterer) WatchTransfer(opts *bind.WatchOpts, sink chan<- *MainnetCryptoCardsContractTransfer, from []common.Address, to []common.Address, tokenId []*big.Int) (event.Subscription, error) {
 
-	var _fromRule []interface{}
-	for _, _fromItem := range _from {
-		_fromRule = append(_fromRule, _fromItem)
+	var fromRule []interface{}
+	for _, fromItem := range from {
+		fromRule = append(fromRule, fromItem)
 	}
-	var _toRule []interface{}
-	for _, _toItem := range _to {
-		_toRule = append(_toRule, _toItem)
+	var toRule []interface{}
+	for _, toItem := range to {
+		toRule = append(toRule, toItem)
 	}
-	var _tokenIdRule []interface{}
-	for _, _tokenIdItem := range _tokenId {
-		_tokenIdRule = append(_tokenIdRule, _tokenIdItem)
+	var tokenIdRule []interface{}
+	for _, tokenIdItem := range tokenId {
+		tokenIdRule = append(tokenIdRule, tokenIdItem)
 	}
 
-	logs, sub, err := _MainnetCryptoCardsContract.contract.WatchLogs(opts, "Transfer", _fromRule, _toRule, _tokenIdRule)
+	logs, sub, err := _MainnetCryptoCardsContract.contract.WatchLogs(opts, "Transfer", fromRule, toRule, tokenIdRule)
 	if err != nil {
 		return nil, err
 	}

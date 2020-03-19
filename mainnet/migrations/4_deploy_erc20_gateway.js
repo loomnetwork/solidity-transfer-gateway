@@ -1,42 +1,25 @@
 const fs = require('fs')
 const path = require('path')
-const mkdirp = require('mkdirp')
 
 const ERC20Gateway = artifacts.require('ERC20Gateway')
-const Loom = artifacts.require('LoomToken')
+const ValidatorManagerContract = artifacts.require('ValidatorManagerContract')
+const MockVMC = artifacts.require('VMCMock')
 
 module.exports = async function (deployer, network, accounts) {
+  if (network === 'test') { return }
   const gatewayCreator = accounts[0]
-  let validators = []
-  
-  console.log(`Deploying Gateway from account: ${gatewayCreator}`)
+  console.log(`Deploying Loomgateway from account: ${gatewayCreator}`)
+  let vmcAddress
 
-  if (network == 'local_ganache' || network == 'develop' || network == 'test' ) {
-    if (!process.env.ENABLE_HSM) {
-      validators.push(accounts[9])
-    } else {
-      validators.push(accounts[9], process.env.HSM_ADDRESS)
-    }
+  if (network == 'local_ganache' || network == 'develop' || network == 'test' || network == 'rinkeby') {
+      deployedVMC = network === 'local_ganache' ? MockVMC : ValidatorManagerContract
+      vmcAddress = deployedVMC.address
   } else {
-    const secretsFile = process.env.SECRET_FILE
-    let secrets = null
-
-    if ((secretsFile == '') || !fs.existsSync(secretsFile)) {
-      console.log("No secrets file found. Can't deploy Gateway without validators!")
-    } else {
-      secrets = JSON.parse(fs.readFileSync(secretsFile, "utf8"))
-      validators = secrets.validators
-    }
+      // Insert mainnet VMC contract address
+      vmcAddress = "0xa4e8c3ec456107ea67d3075bf9e3df3a75823db0"
   }
 
-    // Deploy the Loom ERC20 gateway
-    let loomAddress
-    if (network !== 'mainnet') {
-        loomAddress = Loom.address
-    } else {
-        loomAddress = "0xa4e8c3ec456107ea67d3075bf9e3df3a75823db0"
-    }
-    await deployer.deploy(ERC20Gateway, loomAddress, validators, 3, 4, [], [], { from: gatewayCreator })
+    await deployer.deploy(ERC20Gateway, vmcAddress, { from: gatewayCreator })
     const loomGatewayInstance = await ERC20Gateway.deployed()
 
     let netId = await web3.eth.net.getId()
@@ -44,9 +27,6 @@ module.exports = async function (deployer, network, accounts) {
     let tx = await web3.eth.getTransaction(txHash)
 
     let logs = []
-    for (let i = 0; i < validators.length; i++) {
-      logs.push(`mainnet_loomGateway_validator_${i}: "${validators[i]}"`)
-    }
     logs.push(
       `mainnet_loomGateway_creator_addr: "${gatewayCreator}"`,
       `mainnet_loomGateway_addr: "${loomGatewayInstance.address}"`,
@@ -56,7 +36,7 @@ module.exports = async function (deployer, network, accounts) {
     try {
       const outputDir = path.join(__dirname, `../../e2e_config/${network}`)
       if (!fs.existsSync(outputDir)) {
-        mkdirp.sync(outputDir)
+        fs.mkdirSync(outputDir)
       }
       fs.appendFileSync(path.join(outputDir, 'contracts.yml'), logs.join('\n'))
       fs.appendFileSync(path.join(outputDir, 'contracts.yml'), '\n')

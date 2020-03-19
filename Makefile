@@ -19,6 +19,10 @@ deployer:
 abigen:
 	go build github.com/ethereum/go-ethereum/cmd/abigen
 	# Need to run npm compile in the ./mainnet directory for build/contracts to be created.
+	cat ./mainnet/build/contracts/ValidatorManagerContract.json | jq '.abi' > ./mainnet/build/ValidatorManagerContract.abi
+	./abigen --abi ./mainnet/build/ValidatorManagerContract.abi --pkg ethcontract --type ValidatorManagerContract --out src/ethcontract/mainnet_validator_manager_contract.go 
+	cat ./mainnet/build/contracts/ERC20Gateway.json | jq '.abi' > ./mainnet/build/ERC20Gateway.abi
+	./abigen --abi ./mainnet/build/ERC20Gateway.abi --pkg ethcontract --type ERC20Gateway --out src/ethcontract/mainnet_erc20_gateway.go 
 	cat ./mainnet/build/contracts/Gateway.json | jq '.abi' > ./mainnet/build/MainnetGatewayContract.abi
 	./abigen --abi ./mainnet/build/MainnetGatewayContract.abi --pkg ethcontract --type MainnetGatewayContract --out src/ethcontract/mainnet_gateway.go 
 	cat ./mainnet/build/contracts/CryptoCards.json | jq '.abi' > ./mainnet/build/MainnetCryptoCardsContract.abi

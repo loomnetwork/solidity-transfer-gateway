@@ -10,13 +10,12 @@
         {
             "vm": "plugin",
             "format": "plugin",
-            "name": "dpos",
-            "location": "dpos:1.0.0",
+            "name": "dposV2",
+            "location": "dposV2:2.0.0",
             "init": {
                 "params": {
-                    "witnessCount": "21",
-                    "electionCycleLength": "604800",
-                    "minPowerFraction": "5"
+                    "validatorCount": "21",
+                    "electionCycleLength": "5"
                 },
                 "validators": [
                     {

@@ -1,140 +1,327 @@
-pragma solidity 0.4.24;
+pragma solidity ^0.5.7;
 
-import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
-import "./ECVerify.sol";
+import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 
+contract ValidatorManagerContract {
+    using SafeMath for uint256;
 
-contract ValidatorManagerContract is Ownable {
-  using ECVerify for bytes32;
+    uint256 constant MAX_VALIDATORS_SIZE = 21;
 
-  mapping (address => bool) public allowedTokens;
-  mapping (address => uint256) public nonces; // used for replay protection of withdrawals
-  mapping (address => bool) validators;
+    /// \frac{threshold_num}{threshold_denom} signatures are required for
+    /// validator approval to be granted
+    uint8 public threshold_num;
+    uint8 public threshold_denom;
 
-  uint8 threshold_num;
-  uint8 threshold_denom;
-  uint256 public numValidators;
-  uint256 public nonce; // used for replay protection when adding/removing validators
+    /// The list of currently elected validators
+    address[] public validators;
 
-  event AddedValidator(address validator);
-  event RemovedValidator(address validator);
+    /// The powers of the currently elected validators
+    uint64[] public powers;
 
-  modifier onlyValidator() { require(checkValidator(msg.sender)); _; }
+    /// The current sum of powers of currently elected validators
+    uint256 public totalPower;
 
-  modifier onlyWithThreshold(bytes32 message, uint8[] _v, bytes32[] _r, bytes32[] _s) {
-    // Check that we have enough signatures
+    /// Booleans to permit depositing arbitrary tokens to the gateways
+    bool allowAnyToken;
+    mapping (address => bool) public allowedTokens;
 
-    checkThreshold(message, _v, _r, _s);
-    _;
-    nonce++;
-  }
+    /// Nonce tracking per to prevent replay attacks on signature
+    /// submission during validator rotation
+    uint256 public nonce;
 
-  // _accounts & _nonces are used to prepopulate the account specific nonces, they only need to be
-  // provided when migrating from a previously deployed version of this contract.
-  constructor (
-    address[] _validators, uint8 _threshold_num, uint8 _threshold_denom,
-    address[] _accounts, uint256[] _nonces
-  ) public {
-    uint256 length = _validators.length;
-    require(length > 0);
-    require(_accounts.length == _nonces.length);
+    /// Address of the loom token
+    address public loomAddress;
 
-    threshold_num = _threshold_num;
-    threshold_denom = _threshold_denom;
-    for (uint256 i = 0; i < length ; i++) {
-      require(_validators[i] != address(0), "Validator shouldnt be 0x0");
-      validators[_validators[i]] = true;
-      emit AddedValidator(_validators[i]);
+    /// @notice  Event to log the change of the validator set.
+    /// @param  _validators The initial list of validators
+    /// @param  _powers The initial list of powers of each validator
+    event ValidatorSetChanged(address[] _validators, uint64[] _powers);
+
+    /// @notice View function that returns the powers array.
+    /// @dev    Solidity should have exposed a getter function since the variable is declared public.
+    /// @return powers The powers of the currently elected validators
+    function getPowers() public view returns(uint64[] memory) {
+        return powers;
     }
-    numValidators = _validators.length;
 
-    for (uint256 index = 0; index < _accounts.length; index++) {
-       nonces[_accounts[index]] = _nonces[index];
+    /// @notice View function that returns the validators array.
+    /// @dev    Solidity should have exposed a getter function since the variable is declared public.
+    /// @return validators The currently elected validators
+    function getValidators() public view returns(address[] memory) {
+        return validators;
     }
-  }
 
-  modifier signedByValidator(bytes32 _message, bytes _sig) {
-    // prevent replay attacks by adding the nonce in the sig
-    // if a validator signs an invalid nonce,
-    // it won't pass the signature verification
-    // since the nonce in the hash is stored in the contract
-    address sender = _message.recover(_sig);
-    require(validators[sender], "Message not signed by a validator");
-    _;
-    nonces[msg.sender]++; // increment nonce after execution
-  }
+    /// @notice Initialization of the system
+    /// @param  _validators The initial list of validators
+    /// @param  _powers The initial list of powers of each validator
+    /// @param  _threshold_num The numerator of the fraction of power that needs
+    ///         to sign for a call to be approved by a validator
+    /// @param  _threshold_denom The denominator of the fraction of power that needs
+    ///         to sign for a call to be approved by a validator
+    /// @param  _loomAddress The LOOM token address
+    constructor (
+        address[] memory _validators,
+        uint64[] memory _powers,
+        uint8 _threshold_num,
+        uint8 _threshold_denom,
+        address _loomAddress
+    ) 
+        public 
+    {
+        uint256 length = _validators.length;
+        require(length > 0 && length <= MAX_VALIDATORS_SIZE, 
+                "Must provide more than 0 and no more that MAX_VALIDATORS_SIZE validators"
+        );
 
-  function checkValidator(address _address) public view returns (bool) {
-    // owner is a permanent validator
-    if (_address == owner) {
-      return true;
+        threshold_num = _threshold_num;
+        threshold_denom = _threshold_denom;
+        require(threshold_num <= threshold_denom && threshold_num > 0, "Invalid threshold fraction.");
+        loomAddress = _loomAddress;
+
+        _rotateValidators(_validators, _powers);
     }
-    return validators[_address];
-  }
 
-  function addValidator(address _validator, uint8[] _v, bytes32[] _r, bytes32[] _s)
-    external
-    onlyWithThreshold(createMessage(keccak256(abi.encodePacked("add", _validator))), _v, _r, _s)
-  {
-    require(!validators[_validator], "Already a validator");
+    /// @notice Changes the loom token address. (requires signatures from at least `threshold_num/threshold_denom`
+    ///         validators, otherwise reverts)
+    /// @param  _loomAddress The new loom token address
+    /// @param  _signersIndexes Array of indexes of the validator's signatures based on
+    ///         the currently elected validators
+    /// @param  _v Array of `v` values from the validator signatures
+    /// @param  _r Array of `r` values from the validator signatures
+    /// @param  _s Array of `s` values from the validator signatures
+    function setLoom(
+        address _loomAddress,
+        uint256[] calldata _signersIndexes, // Based on: https://github.com/cosmos/peggy/blob/master/ethereum-contracts/contracts/Valset.sol#L75
+        uint8[] calldata _v,
+        bytes32[] calldata _r,
+        bytes32[] calldata _s
+    ) 
+        external 
+    {
+        // Hash the address of the contract along with the nonce and the
+        // updated loom token address.
+        bytes32 message = createMessage(
+            keccak256(abi.encodePacked(_loomAddress))
+        );
 
-    // Add validator and increment nonce
-    validators[_validator] = true;
-    numValidators++;
-    emit AddedValidator(_validator);
-  }
+        // Check if the signatures match the threshold set in the constructor
+        checkThreshold(message, _signersIndexes, _v, _r, _s);
 
-  function removeValidator(address _validator, uint8[] _v, bytes32[] _r, bytes32[] _s)
-    external
-    onlyWithThreshold(createMessage(keccak256(abi.encodePacked("remove", _validator))), _v, _r, _s)
-  {
-    require(validators[_validator], "Not a validator");
-    require(numValidators > 1);
-    delete validators[_validator];
-    numValidators--;
-
-    emit RemovedValidator(_validator);
-  }
-
-  // Can't pass bytes[] to use the whole sig due to ABI enc
-  //, so we need to send v,r,s params
-  function checkThreshold(bytes32 _message, uint8[] _v, bytes32[] _r, bytes32[] _s) private view {
-    require(_v.length > 0 && _v.length == _r.length && _r.length == _s.length,
-      "Incorrect number of params");
-    require(_v.length >= (threshold_num * numValidators / threshold_denom ),
-      "Not enough votes");
-
-    bytes32 hash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", _message));
-    uint256 sig_length = _v.length;
-
-    // Check that all addresess were from validators
-    // Prevent duplicates by requiring that the sender sigs
-    // get submitted in increasing order
-    // influenced by
-    // https://github.com/christianlundkvist/simple-multisig
-    address lastAdd = address(0);
-    for (uint256 i = 0; i < sig_length; i++) {
-      address signer = ecrecover(hash, _v[i], _r[i], _s[i]);
-      require(signer > lastAdd && validators[signer], "Not signed by enough validators");
-      lastAdd = signer;
+        // Update state
+        loomAddress = _loomAddress;
+        nonce++;
     }
-  }
 
-  /// @dev Toggles the token validate
-  function toggleToken(address _token) public onlyValidator {
-    allowedTokens[_token] = !allowedTokens[_token];
-  }
+    /// @notice Changes the threshold of signatures required to pass the
+    ///         validator signature check (requires signatures from at least `threshold_num/threshold_denom`
+    ///         validators, otherwise reverts)
+    /// @param  _num The new numerator
+    /// @param  _denom The new denominator
+    /// @param  _signersIndexes Array of indexes of the validator's signatures based on
+    ///         the currently elected validators
+    /// @param  _v Array of `v` values from the validator signatures
+    /// @param  _r Array of `r` values from the validator signatures
+    /// @param  _s Array of `s` values from the validator signatures
+    function setQuorum(
+        uint8 _num,
+        uint8 _denom,
+        uint256[] calldata _signersIndexes, // Based on: https://github.com/cosmos/peggy/blob/master/ethereum-contracts/contracts/Valset.sol#L75
+        uint8[] calldata _v,
+        bytes32[] calldata _r,
+        bytes32[] calldata _s
+    ) 
+        external 
+    {
+        require(_num <= _denom && _num > 0, "Invalid threshold fraction");
 
-  function createMessage(bytes32 hash)
-      private
-      view returns (bytes32)
-  {
-      return keccak256(
-          abi.encodePacked(
-              address(this),
-              nonce,
-              hash
-          )
-      );
-  }
+        // Hash the address of the contract along with the nonce and the
+        // updated validator set.
+        bytes32 message = createMessage(
+            keccak256(abi.encodePacked(_num, _denom))
+        );
+
+        // Check if the signatures match the threshold set in the consutrctor
+        checkThreshold(message, _signersIndexes, _v, _r, _s);
+
+        threshold_num = _num;
+        threshold_denom = _denom;
+        nonce++;
+    }
+
+    /// @notice Updates the validator set with new validators and powers
+    ///         (requires signatures from at least `threshold_num/threshold_denom`
+    ///         validators, otherwise reverts)
+    /// @param  _newValidators The new validator set
+    /// @param  _newPowers The new list of powers corresponding to the validator set
+    /// @param  _signersIndexes Array of indexes of the validator's signatures based on
+    ///         the currently elected validators
+    /// @param  _v Array of `v` values from the validator signatures
+    /// @param  _r Array of `r` values from the validator signatures
+    /// @param  _s Array of `s` values from the validator signatures
+    function rotateValidators(
+        address[] calldata _newValidators, 
+        uint64[] calldata  _newPowers,
+        uint256[] calldata _signersIndexes, // Based on: https://github.com/cosmos/peggy/blob/master/ethereum-contracts/contracts/Valset.sol#L75
+        uint8[] calldata _v,
+        bytes32[] calldata _r,
+        bytes32[] calldata _s
+    ) 
+        external 
+    {
+        // Hash the address of the contract along with the nonce and the
+        // updated validator set and powers.
+        bytes32 message = createMessage(
+            keccak256(abi.encodePacked(_newValidators,_newPowers))
+        );
+
+        // Check if the signatures match the threshold set in the consutrctor
+        checkThreshold(message, _signersIndexes, _v, _r, _s);
+
+        // update validator set
+        _rotateValidators(_newValidators, _newPowers);
+        nonce++;
+    }
+
+
+    /// @notice Checks if the provided signature is valid on message by the
+    ///         validator corresponding to `signersIndex`. Reverts if check fails
+    /// @param  _message The messsage hash that was signed
+    /// @param  _signersIndex The validator's index in the `validators` array
+    /// @param  _v The v value of the validator's signature
+    /// @param  _r The r value of the validator's signature
+    /// @param  _s The s value of the validator's signature
+    function signedByValidator(
+        bytes32 _message,
+        uint256 _signersIndex,
+        uint8 _v,
+        bytes32 _r,
+        bytes32 _s
+    ) 
+        public 
+        view
+    {
+        // prevent replay attacks by adding the nonce in the sig
+        // if a validator signs an invalid nonce,
+        // it won't pass the signature verification
+        // since the nonce in the hash is stored in the contract
+        address signer = ecrecover(_message, _v, _r, _s);
+        require(validators[_signersIndex] == signer, "Message not signed by a validator");
+    }
+
+    /// @notice Completes if the message being passed was signed by the required
+    ///         threshold of validators, otherwise reverts
+    /// @param  _signersIndexes Array of indexes of the validator's signatures based on
+    ///         the currently elected validators
+    /// @param  _v Array of `v` values from the validator signatures
+    /// @param  _r Array of `r` values from the validator signatures
+    /// @param  _s Array of `s` values from the validator signatures
+    function checkThreshold(bytes32 _message, uint256[] memory _signersIndexes, uint8[] memory _v, bytes32[] memory _r, bytes32[] memory _s) public view {
+        uint256 sig_length = _v.length;
+
+        require(sig_length <= validators.length,
+                "checkThreshold:: Cannot submit more signatures than existing validators"
+        );
+
+        require(sig_length > 0 && sig_length == _r.length && _r.length == _s.length && sig_length == _signersIndexes.length,
+                "checkThreshold:: Incorrect number of params"
+        );
+
+        // Signed message prefix
+        bytes32 hash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", _message));
+
+        // Get total voted power while making sure all signatures submitted
+        // were by validators without duplication
+        uint256 votedPower;
+        for (uint256 i = 0; i < sig_length; i++) {
+            if (i > 0) {
+                require(_signersIndexes[i] > _signersIndexes[i-1]);
+            }
+
+            // Skip malleable signatures / maybe better to revert instead of skipping?
+            if (uint256(_s[i]) > 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0) {
+                continue;
+            }
+            address signer = ecrecover(hash, _v[i], _r[i], _s[i]);
+            require(signer == validators[_signersIndexes[i]], "checkThreshold:: Recovered address is not a validator");
+
+            votedPower = votedPower.add(powers[_signersIndexes[i]]);
+        }
+
+        require(votedPower * threshold_denom >= totalPower *
+                threshold_num, "checkThreshold:: Not enough power from validators");
+    }
+
+    /// @notice Checks if a token at `tokenAddress` is allowed
+    /// @param  tokenAddress The token's address
+    /// @return True if `allowAnyToken` is set, or if the token has been allowed
+    function isTokenAllowed(address tokenAddress) public view returns(bool) {
+        return allowAnyToken || allowedTokens[tokenAddress];
+    }
+
+    /// @notice A validator can toggle allowing any token to be deposited on
+    ///         the sidechain
+    /// @param allow Boolean to allow or not the token
+    /// @param validatorIndex the validator's index
+    function toggleAllowAnyToken(bool allow, uint256 validatorIndex) public {
+        require(msg.sender == validators[validatorIndex], "toggleAllowAnyToken: Not a validator");
+        allowAnyToken = allow;
+    }
+
+    /// @notice A validator can toggle allowing a token to be deposited on
+    ///         the sidechain
+    /// @param  tokenAddress The token address
+    /// @param  allow Boolean to allow or not the token
+    /// @param  validatorIndex the validator's index
+    function toggleAllowToken(address tokenAddress, bool allow, uint256 validatorIndex) public {
+        require(msg.sender == validators[validatorIndex], "toggleAllowAnyToken: Not a validator");
+        allowedTokens[tokenAddress] = allow;
+
+    }
+
+    /// @notice Internal method that updates the state with the new validator
+    ///         set and powers, as well as the new total power
+    /// @param  _validators The initial list of validators
+    /// @param  _powers The initial list of powers of each validator
+    function _rotateValidators(address[] memory _validators, uint64[] memory _powers) internal {
+        uint256 val_length = _validators.length;
+
+        require(val_length > 0 && val_length <= MAX_VALIDATORS_SIZE, 
+                "Must provide more than 0 and no more that MAX_VALIDATORS_SIZE validators"
+        );
+
+        require(val_length == _powers.length, 
+                "_rotateValidators: Array lengths do not match!"
+        );
+
+        uint256 _totalPower = 0;
+        for (uint256 i = 0; i < val_length; i++) {
+            _totalPower = _totalPower.add(_powers[i]);
+        }
+
+        // Set total power
+        totalPower = _totalPower;
+
+        // Set validators and their powers
+        validators = _validators;
+        powers = _powers;
+
+        emit ValidatorSetChanged(_validators, _powers);
+    }
+
+    /// @notice Creates the message hash that includes replay protection and
+    ///         binds the hash to this contract only.
+    /// @param  hash The hash of the message being signed
+    /// @return A hash on the hash of the message
+    function createMessage(bytes32 hash)
+    private
+    view returns (bytes32)
+    {
+        return keccak256(
+            abi.encodePacked(
+                address(this),
+                nonce,
+                hash
+            )
+        );
+    }
 }

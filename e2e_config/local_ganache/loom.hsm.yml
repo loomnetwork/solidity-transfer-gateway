@@ -1,4 +1,6 @@
 ChainID: "default"
+DPOSVersion: 2
+WithdrawalVersion: 2
 RegistryVersion: 2
 ReceiptsVersion: 2
 LogDestination: "file://local_loom.log"
@@ -11,6 +13,9 @@ KarmaEnabled: false
 CreateEmptyBlocks: false
 EVMAccountsEnabled: true
 TransferGateway:
+  BatchSignFnConfig:
+    Enabled: true
+    MainnetPrivateKeyPath: "oracle_eth_priv.key"
   # Enables the Transfer Gateway Go contract, must be the same on all nodes.
   ContractEnabled: true
   # Enables the in-process Transfer Gateway Oracle.
@@ -20,7 +25,7 @@ TransferGateway:
   #       often times out while the tests are waiting for the Oracle to do something. So better to
   #       use the HTTP endpoint for testing.
   EthereumURI: "http://127.0.0.1:8545"
-  MainnetContractHexAddress: "0x6804f48233F6Ff2b468f7636560d525ca951931e"
+  MainnetContractHexAddress: "0xc643de39Dd15B7787D1B87dD48E6e7E2B1A1f118"
   MainnetPrivateKeyHsmEnabled: true
   MainnetPrivateKeyPath: "oracle_eth_priv_hsm.key"
   DappChainPrivateKeyHsmEnabled: true
@@ -39,6 +44,9 @@ TransferGateway:
   # Number of seconds to wait between reconnection attempts.
   OracleReconnectInterval: 5
 LoomCoinTransferGateway:
+  BatchSignFnConfig:
+    Enabled: true
+    MainnetPrivateKeyPath: "oracle_eth_priv.key"
   # Enables the Transfer Gateway Go contract on the node, must be the same on all nodes.
   ContractEnabled: true
   # Enables the in-process Transfer Gateway Oracle.
@@ -48,7 +56,7 @@ LoomCoinTransferGateway:
   EthereumURI: "ws://127.0.0.1:8545"
   # Address of Transfer Gateway contract on Mainnet
   # e.g. 0x3599a0abda08069e8e66544a2860e628c5dc1190
-  MainnetContractHexAddress: "0x9E51aEEECa736CD81D27E025465834b8eC08628A"
+  MainnetContractHexAddress: "0x6804f48233F6Ff2b468f7636560d525ca951931e"
   # Path to Ethereum private key on disk that should be used by the Oracle to sign withdrawals,
   # can be a relative, or absolute Path
   MainnetPrivateKeyPath: "oracle_eth_priv.key"

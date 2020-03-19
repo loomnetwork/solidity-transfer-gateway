@@ -6,9 +6,9 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/loomnetwork/go-loom/client"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/loomnetwork/go-loom/client"
 )
 
 type MainnetCryptoCardsClient struct {

@@ -1,10 +1,10 @@
 const fs = require('fs')
 const path = require('path')
-const mkdirp = require('mkdirp')
 
 const Loom = artifacts.require('LoomToken')
 
 module.exports = async function (deployer, network, accounts) {
+    if (network === 'test') { return }
     // only deploy to testnets
     let loomAddress, loomBlockNumber
     if (network !== 'mainnet') {
@@ -32,7 +32,7 @@ module.exports = async function (deployer, network, accounts) {
     try {
       const outputDir = path.join(__dirname, `../../e2e_config/${network}`)
       if (!fs.existsSync(outputDir)) {
-        mkdirp.sync(outputDir)
+        fs.mkdirSync(outputDir)
       }
       fs.writeFileSync(path.join(outputDir, 'contracts.yml'), logs.join('\n'))
       fs.appendFileSync(path.join(outputDir, 'contracts.yml'), '\n')

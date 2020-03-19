@@ -1,4 +1,4 @@
-pragma solidity 0.4.24;
+pragma solidity <0.6.0;
 
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 import "erc721x/contracts/Core/ERC721X/ERC721XToken.sol";
@@ -10,15 +10,15 @@ contract ERC721XCards is ERC721XToken {
     address owner;
     address public gateway;
 
-    function name() external view returns (string) {
+    function name() external view returns (string memory) {
         return "ERC721XCards";
     }
 
-    function symbol() external view returns (string) {
+    function symbol() external view returns (string memory) {
         return "XCRD";
     }
 
-    constructor (address _gateway) public {
+    constructor (address _gateway, string memory _baseTokenURI) ERC721XToken(_baseTokenURI) public  {
         owner = msg.sender;
         gateway = _gateway;
     }
@@ -29,7 +29,7 @@ contract ERC721XCards is ERC721XToken {
         _mint(_tokenId, _to, supply.add(_amount));
     }
 
-    function airdrop(uint256[] tokenIds, uint256[] amounts, address[] receivers) public {
+    function airdrop(uint256[] memory tokenIds, uint256[] memory amounts, address[] memory receivers) public {
         require(tokenIds.length == amounts.length && tokenIds.length == receivers.length, "Lengths do not match");
         uint256 length = tokenIds.length;
         for (uint256 i = 0 ; i < length; i++) {

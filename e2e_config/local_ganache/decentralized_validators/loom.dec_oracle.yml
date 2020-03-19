@@ -1,7 +1,4 @@
 ChainID: "default"
-FnConsensus:
-  Enabled: true
-DPOSVersion: 2
 RegistryVersion: 2
 ReceiptsVersion: 2
 LogDestination: "file://local_loom.log"
@@ -13,13 +10,15 @@ LogEthDbBatch: true
 KarmaEnabled: false
 CreateEmptyBlocks: false
 EVMAccountsEnabled: true
+FnConsensus:
+  Enabled: true
 TransferGateway:
   BatchSignFnConfig:
-    Enabled: true
+    Enabled: false
+    DAppChainPrivateKeyPath: "oracle_priv.key"
     MainnetPrivateKeyPath: "oracle_eth_priv.key"
   # Enables the Transfer Gateway Go contract, must be the same on all nodes.
   ContractEnabled: true
-  WithdrawalSig: 2
   # Enables the in-process Transfer Gateway Oracle.
   OracleEnabled: true
   # NOTE: Ganache seems to drop websocket connections after a few seconds of inactivity, when
@@ -27,7 +26,7 @@ TransferGateway:
   #       often times out while the tests are waiting for the Oracle to do something. So better to
   #       use the HTTP endpoint for testing.
   EthereumURI: "http://127.0.0.1:8545"
-  MainnetContractHexAddress: "0xc643de39Dd15B7787D1B87dD48E6e7E2B1A1f118"
+  MainnetContractHexAddress: "0x6804f48233F6Ff2b468f7636560d525ca951931e"
   MainnetPrivateKeyPath: "oracle_eth_priv.key"
   DAppChainPrivateKeyPath: "oracle_priv.key"
   DAppChainReadURI: "http://localhost:46658/query"
@@ -37,7 +36,6 @@ TransferGateway:
   # These control how often the Oracle will poll the blockchains for events.
   DAppChainPollInterval: 1 # seconds
   MainnetPollInterval: 1 # seconds
-  NumMainnetBlockConfirmations: 10
   OracleLogLevel: "debug"
   OracleLogDestination: "file://oracle.log"
   # Number of seconds to wait before starting the Oracle.
@@ -46,11 +44,11 @@ TransferGateway:
   OracleReconnectInterval: 5
 LoomCoinTransferGateway:
   BatchSignFnConfig:
-    Enabled: true
+    Enabled: false
+    DAppChainPrivateKeyPath: "oracle_priv.key"
     MainnetPrivateKeyPath: "oracle_eth_priv.key"
   # Enables the Transfer Gateway Go contract on the node, must be the same on all nodes.
   ContractEnabled: true
-  WithdrawalSig: 2
   # Enables the in-process Transfer Gateway Oracle.
   # If this is enabled ContractEnabled must be set to true.
   OracleEnabled: true
@@ -58,7 +56,7 @@ LoomCoinTransferGateway:
   EthereumURI: "ws://127.0.0.1:8545"
   # Address of Transfer Gateway contract on Mainnet
   # e.g. 0x3599a0abda08069e8e66544a2860e628c5dc1190
-  MainnetContractHexAddress: "0x6804f48233F6Ff2b468f7636560d525ca951931e"
+  MainnetContractHexAddress: "0x9E51aEEECa736CD81D27E025465834b8eC08628A"
   # Path to Ethereum private key on disk that should be used by the Oracle to sign withdrawals,
   # can be a relative, or absolute path
   MainnetPrivateKeyPath: "oracle_eth_priv.key"
@@ -71,7 +69,6 @@ LoomCoinTransferGateway:
   DAppChainEventsURI: "ws://127.0.0.1:46658/queryws"
   DAppChainPollInterval: 1
   MainnetPollInterval: 1
-  NumMainnetBlockConfirmations: 10
   # Oracle log verbosity (debug, info, error, etc.)
   OracleLogLevel: "debug"
   OracleLogDestination: "file://loomcoin_tgoracle.log"
