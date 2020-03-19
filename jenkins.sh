@@ -18,6 +18,28 @@ set -exo pipefail
 REPO_ROOT=`pwd`
 pkill -f loom || true
 
+#load specific number of LOOM_BIN
+rm -rf loom
+export BUILD_ID=build-1046
+
+# Check available platforms
+PLATFORM='unknown'
+unamestr=`uname`
+if [[ "$unamestr" == 'Linux' ]]; then
+  PLATFORM='linux'
+elif [[ "$unamestr" == 'Darwin' ]]; then
+  PLATFORM='osx'
+else
+  echo "Platform not supported on this script yet"
+  exit -1
+fi
+
+
+
+wget https://private.delegatecall.com/loom/$PLATFORM/$BUILD_ID/loom
+chmod +x loom
+export LOOM_BIN=`pwd`/loom
+
 if [[ -z "$ETHEREUM_NETWORK" ]]; then
     cd $REPO_ROOT/mainnet
     yarn install
@@ -98,3 +120,18 @@ else
     #                       --run-test "$TEST_TO_RUN" \
     #                       --enable-hsm --hsmkey-address 0x2669Ff29f3D3e78DAFd2dB842Cb9d0dDb96D90f2
 fi
+
+cd tron
+
+make deps
+
+cd ../
+
+## Run Tron test on Shasta
+REPO_ROOT=`pwd` \
+bash loom_e2e_tests.sh --init \
+    --gateway-type tron-gateway \
+    --tron-network shasta \
+    --launch-dappchain \
+    --deploy-dappchain-contracts \
+    --map-contracts

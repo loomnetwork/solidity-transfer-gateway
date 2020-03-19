@@ -14,10 +14,24 @@ import (
 )
 
 func GetConfigDir() string {
-	ethNet := os.Getenv("ETHEREUM_NETWORK")
-	if ethNet == "" {
-		ethNet = "ganache"
+	gwType := os.Getenv("GATEWAY_TYPE")
+	if gwType == "" {
+		gwType = "eth"
 	}
+
+	var mainNet string
+	if gwType == "eth" {
+		mainNet = os.Getenv("ETHEREUM_NETWORK")
+		if mainNet == "" {
+			mainNet = "ganache"
+		}
+	} else {
+		mainNet = os.Getenv("TRON_NETWORK")
+		if mainNet == "" {
+			mainNet = "shasta"
+		}
+	}
+
 	dappNet := os.Getenv("DAPPCHAIN_NETWORK")
 	if dappNet == "" {
 		dappNet = "local"
@@ -25,7 +39,7 @@ func GetConfigDir() string {
 	// When running "go test" the cwd is set to the package dir, not the root dir
 	// where the config is, so gotta do a bit more work to figure out the config dir...
 	_, filename, _, _ := runtime.Caller(0)
-	return filepath.Join(filepath.Dir(filename), "../../e2e_config/"+dappNet+"_"+ethNet)
+	return filepath.Join(filepath.Dir(filename), "../../e2e_config/"+dappNet+"_"+mainNet)
 }
 
 // Loads gateway_test_config.yml or equivalent from project root
@@ -80,5 +94,11 @@ func LoadDAppChainContractCode(contractName string) ([]byte, error) {
 func GetKeys(name string) (string, string) {
 	ethKey := GetTestAccountKey(name + "_eth")
 	dappchainKey := GetTestAccountKey(name + "_dapp")
-    return ethKey, dappchainKey
+	return ethKey, dappchainKey
+}
+
+func GetTronKeys(name string) (string, string) {
+	tronKey := GetTestAccountKey(name + "_tron")
+	dappchainKey := GetTestAccountKey(name + "_dapp")
+	return tronKey, dappchainKey
 }

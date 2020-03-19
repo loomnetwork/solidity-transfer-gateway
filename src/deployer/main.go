@@ -4,20 +4,23 @@ import (
 	"client"
 	"fmt"
 	"gateway"
+	"io/ioutil"
 	"math/big"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
+	loom "github.com/loomnetwork/go-loom"
 	tgtypes "github.com/loomnetwork/go-loom/builtin/types/transfer_gateway"
 	loom_client "github.com/loomnetwork/go-loom/client"
 	"github.com/loomnetwork/go-loom/client/erc20"
 	"github.com/loomnetwork/go-loom/client/erc721"
 	"github.com/loomnetwork/go-loom/client/erc721x"
-	gw "github.com/loomnetwork/go-loom/client/gateway_v2"
+	gw "github.com/loomnetwork/go-loom/client/gateway"
 	vmc "github.com/loomnetwork/go-loom/client/validator_manager"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -45,6 +48,14 @@ func newDeployCmd() *cobra.Command {
 	}
 }
 
+func newDeployTronCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "deploy-tron",
+		Short: "Deploys test contracts using Tron gateway",
+		RunE:  deployTron,
+	}
+}
+
 var mapContractsTimeout int
 
 func newMapContractsCmd() *cobra.Command {
@@ -52,6 +63,18 @@ func newMapContractsCmd() *cobra.Command {
 		Use:   "map-contracts",
 		Short: "Adds contract mappings for test contracts",
 		RunE:  mapContracts,
+	}
+	cmd.Flags().IntVar(&mapContractsTimeout, "timeout", 10,
+		"Max number of seconds to wait for Oracle to confirm contract mapping.")
+
+	return cmd
+}
+
+func newMapTronContractsCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "map-tron-contracts",
+		Short: "Adds tron contract mappings for test contracts",
+		RunE:  mapTronContracts,
 	}
 	cmd.Flags().IntVar(&mapContractsTimeout, "timeout", 10,
 		"Max number of seconds to wait for Oracle to confirm contract mapping.")
@@ -351,6 +374,192 @@ func mapContracts(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+func deployTron(cmd *cobra.Command, args []string) error {
+	dAppChainContractsToDeploy := map[string]bool{}
+	if len(cmdFlags.DAppChainContractNames) > 0 {
+		for _, contractName := range cmdFlags.DAppChainContractNames {
+			dAppChainContractsToDeploy[contractName] = true
+		}
+	}
+
+	loomCfg, err := gateway.ParseConfig([]string{cmdFlags.LoomDir})
+	if err != nil {
+		return errors.Wrap(err, "failed to parse loom config")
+	}
+
+	tronKey, dappchainKey := gateway.GetTronKeys("trudy")
+	erc20Creator, err := loom_client.CreateIdentityStr(tronKey, dappchainKey, loomCfg.ChainID)
+	if err != nil {
+		return errors.Wrap(err, "failed to create identity")
+	}
+
+	// Deploy contracts to DAppChain
+
+	if len(dAppChainContractsToDeploy) > 0 {
+		loomClient := loom_client.NewDAppChainRPCClient(
+			loomCfg.ChainID,
+			loomCfg.TransferGateway.DAppChainWriteURI,
+			loomCfg.TransferGateway.DAppChainReadURI,
+		)
+
+		loomGateway, err := gw.ConnectToDAppChainTronGateway(loomClient, loomCfg.TransferGateway.DAppChainEventsURI)
+		if err != nil {
+			return errors.Wrap(err, "failed to connect to Gateway on DAppChain")
+		}
+
+		if dAppChainContractsToDeploy["TRXToken"] {
+			c, err := erc20.DeployERC20ToDAppChain(
+				loomClient, "TRXToken", loomGateway.Address, erc20Creator.LoomSigner)
+			if err != nil {
+				return errors.Wrap(err, "failed to deploy TRXToken")
+			}
+			fmt.Printf("TRXToken at %v\n", c.Address)
+			// write to file for tron test
+			e2eDir := path.Dir(cmdFlags.EthereumDeploymentInfoPath)
+			if err := os.MkdirAll(e2eDir, 0744); err != nil {
+				return errors.Wrap(err, "failed to create directory")
+			}
+			filename := path.Join(e2eDir, "dapp_trx_token_address")
+			err = ioutil.WriteFile(filename, []byte(c.Address.String()), 0744)
+			if err != nil {
+				return errors.Wrap(err, "failed to write file dapp_trx_token_address")
+			}
+			fmt.Println("wrote to file...", filename)
+		}
+
+		if dAppChainContractsToDeploy["SampleERC20Token"] {
+			c, err := erc20.DeployERC20ToDAppChain(
+				loomClient, "SampleERC20Token", loomGateway.Address, erc20Creator.LoomSigner)
+			if err != nil {
+				return errors.Wrap(err, "failed to deploy SampleERC20Token")
+			}
+			fmt.Printf("SampleERC20Token at %v\n", c.Address)
+			// write to file for tron test
+			e2eDir := path.Dir(cmdFlags.EthereumDeploymentInfoPath)
+			if err := os.MkdirAll(e2eDir, 0744); err != nil {
+				return errors.Wrap(err, "failed to create directory")
+			}
+			filename := path.Join(e2eDir, "dapp_trc20_token_address")
+			err = ioutil.WriteFile(filename, []byte(c.Address.String()), 0744)
+			if err != nil {
+				return errors.Wrap(err, "failed to write file dapp_trc20_token_address")
+			}
+			fmt.Println("wrote to file...", filename)
+		}
+	}
+
+	return nil
+}
+
+func mapTronContracts(cmd *cobra.Command, args []string) error {
+	dAppChainContracts := map[string]bool{}
+	if len(cmdFlags.DAppChainContractNames) > 0 {
+		for _, contractName := range cmdFlags.DAppChainContractNames {
+			dAppChainContracts[contractName] = true
+		}
+	}
+
+	if len(dAppChainContracts) == 0 {
+		return nil
+	}
+
+	loomCfg, err := gateway.ParseConfig([]string{cmdFlags.LoomDir})
+	if err != nil {
+		return errors.Wrap(err, "failed to parse loom config")
+	}
+
+	tronKey, dappchainKey := gateway.GetTronKeys("trudy")
+	erc20Creator, err := loom_client.CreateIdentityStr(tronKey, dappchainKey, loomCfg.ChainID)
+	if err != nil {
+		return errors.Wrap(err, "failed to create identity")
+	}
+
+	tronKey, dappchainKey = gateway.GetTronKeys("gateway_owner")
+	gatewayOwner, err := loom_client.CreateIdentityStr(tronKey, dappchainKey, loomCfg.ChainID)
+	if err != nil {
+		return errors.Wrap(err, "failed to create identity")
+	}
+
+	deploymentInfo, err := parseEthereumDeploymentInfo(cmdFlags.EthereumDeploymentInfoPath)
+	if err != nil {
+		return errors.Wrap(err, "failed to load deployment info file")
+	}
+
+	loomClient := loom_client.NewDAppChainRPCClient(
+		loomCfg.ChainID,
+		loomCfg.TransferGateway.DAppChainWriteURI,
+		loomCfg.TransferGateway.DAppChainReadURI,
+	)
+
+	loomGateway, err := gw.ConnectToDAppChainTronGateway(loomClient, loomCfg.TransferGateway.DAppChainEventsURI)
+	if err != nil {
+		return errors.Wrap(err, "failed to connect to Gateway on DAppChain")
+	}
+
+	oracleWaitTime := time.Duration(mapContractsTimeout) * time.Second
+
+	var contractMappingSub *gw.EventSub
+	contractMappingConfirmedCh := make(chan *tgtypes.TransferGatewayContractMappingConfirmed, 1)
+
+	if len(dAppChainContracts) > 0 {
+		contractMappingSub, err = loomGateway.WatchContractMappingConfirmed(contractMappingConfirmedCh)
+		if err != nil {
+			return errors.Wrap(err, "failed to subscribe to DAppChain events")
+		}
+	}
+
+	if dAppChainContracts["TRXToken"] {
+		TRXToken, err := erc20.ConnectERC20ToDAppChain(loomClient, "TRXToken")
+		if err != nil {
+			return err
+		}
+		fakeTRXContractAddress := loom.MustParseAddress("tron:0x0000000000000000000000000000000000000001")
+		err = loomGateway.AddAuthorizedTronContractMapping(
+			common.HexToAddress(fakeTRXContractAddress.Local.Hex()), TRXToken.Address,
+			gatewayOwner,
+		)
+		if err != nil {
+			return errors.Wrap(err, "failed to map ERC20 contracts")
+		}
+	}
+
+	if dAppChainContracts["SampleERC20Token"] {
+		loomCoin, err := erc20.ConnectERC20ToDAppChain(loomClient, "SampleERC20Token")
+		if err != nil {
+			return err
+		}
+
+		tronContractAddress := deploymentInfo.GetString("loomtoken_addr")
+		tronContractAddress = strings.TrimPrefix(tronContractAddress, "41")
+		if !common.IsHexAddress(tronContractAddress) {
+			return errors.New("missing Tron address for ERC20 contract")
+		}
+
+		// we are not able txHash when we deploy contract via tronbox.
+		// so the hacky way to get gateway checking it to use tronContractAddress
+		// as a key for the gateway.
+		err = loomGateway.AddTronContractMapping(
+			common.HexToAddress(tronContractAddress), loomCoin.Address,
+			erc20Creator, tronContractAddress,
+		)
+		if err != nil {
+			return errors.Wrap(err, "failed to map ERC20 contracts")
+		}
+
+		// Let the Oracle fetch pending contract mappings and confirm them
+		select {
+		case <-contractMappingConfirmedCh:
+		case <-time.After(oracleWaitTime):
+			return errors.New("timeout while waiting for ContractMappingConfirmed event for ERC20 contracts")
+		}
+	}
+
+	if contractMappingSub != nil {
+		contractMappingSub.Close()
+	}
+	return nil
+}
+
 func parseEthereumDeploymentInfo(filename string) (*viper.Viper, error) {
 	v := viper.New()
 	name := filepath.Base(filename)
@@ -375,6 +584,8 @@ func main() {
 	RootCmd.AddCommand(
 		newDeployCmd(),
 		newMapContractsCmd(),
+		newDeployTronCmd(),
+		newMapTronContractsCmd(),
 	)
 
 	if err := RootCmd.Execute(); err != nil {

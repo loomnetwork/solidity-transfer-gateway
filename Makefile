@@ -2,7 +2,9 @@
 
 PLUGIN_DIR = $(GOPATH)/src/github.com/loomnetwork/go-loom
 GOLANG_PROTOBUF_DIR = $(GOPATH)/src/github.com/golang/protobuf
+GENPROTO_DIR = $(GOPATH)/src/google.golang.org/genproto
 GOGO_PROTOBUF_DIR = $(GOPATH)/src/github.com/gogo/protobuf
+GRPC_DIR = $(GOPATH)/src/google.golang.org/grpc
 GO_ETHEREUM_DIR = $(GOPATH)/src/github.com/ethereum/go-ethereum
 SSHA3_DIR = $(GOPATH)/src/github.com/miguelmota/go-solidity-sha3
 HASHICORP_DIR = $(GOPATH)/src/github.com/hashicorp/go-plugin
@@ -11,6 +13,8 @@ HASHICORP_DIR = $(GOPATH)/src/github.com/hashicorp/go-plugin
 ETHEREUM_GIT_REV = 1fb6138d017a4309105d91f187c126cf979c93f9
 # use go-plugin we get 'timeout waiting for connection info' error
 HASHICORP_GIT_REV = f4c3476bd38585f9ec669d10ed1686abd52b9961
+# pin protobuf related
+GENPROTO_GIT_REV = b515fa19cec88c32f305a962f34ae60068947aea
 
 deployer:
 	GOPATH=$(GOPATH):`pwd` \
@@ -55,6 +59,8 @@ abigen:
 	cat ./dappchain/build/contracts/SampleERC721XToken.json | jq '.bytecode' -j > ./src/ethcontract/SampleERC721XToken.bin
 	cat ./dappchain/build/contracts/EthCoinIntegrationTest.json | jq '.abi' > ./src/ethcontract/EthCoinIntegrationTest.abi
 	cat ./dappchain/build/contracts/EthCoinIntegrationTest.json | jq '.bytecode' -j > ./src/ethcontract/EthCoinIntegrationTest.bin
+	cat ./dappchain/build/contracts/TRXToken.json | jq '.abi' > ./src/ethcontract/TRXToken.abi
+	cat ./dappchain/build/contracts/TRXToken.json | jq '.bytecode' -j > ./src/ethcontract/TRXToken.bin
 
 $(GO_ETHEREUM_DIR):
 	git clone -q https://github.com/loomnetwork/go-ethereum.git $@
@@ -78,12 +84,14 @@ deps: $(GO_ETHEREUM_DIR) $(SSHA3_DIR)
 		github.com/prometheus/client_golang/prometheus \
 		github.com/phonkee/go-pubsub \
 		github.com/gorilla/websocket \
-		github.com/loomnetwork/yubihsm-go
-	# cd $(GOPATH)/src/github.com/loomnetwork/go-loom && git checkout add-contracts # only use when testing new go-loom features
+		github.com/loomnetwork/yubihsm-go \
+		github.com/btcsuite/btcd
+	# cd $(GOPATH)/src/github.com/loomnetwork/go-loom && git checkout fix-split-sigs # only use when testing new go-loom features
 	cd $(GO_ETHEREUM_DIR) && git checkout master && git pull && git checkout $(ETHEREUM_GIT_REV)
-	#cd $(PLUGIN_DIR) && git checkout plasmachain-compat && git pull origin plasmachain-compat
 	cd $(GOLANG_PROTOBUF_DIR) && git checkout v1.1.0
 	cd $(HASHICORP_DIR) && git checkout $(HASHICORP_GIT_REV)
+	cd $(GRPC_DIR) && git checkout v1.20.1
+	cd $(GENPROTO_DIR) && git checkout master && git pull && git checkout $(GENPROTO_GIT_REV)
 
 clean:
 	go clean

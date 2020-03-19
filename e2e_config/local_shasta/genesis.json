@@ -1,0 +1,84 @@
+{
+    "contracts": [
+        {
+            "vm": "plugin",
+            "format": "plugin",
+            "name": "coin",
+            "location": "coin:1.0.0",
+            "init": null
+        },
+        {
+            "vm": "plugin",
+            "format": "plugin",
+            "name": "dposV2",
+            "location": "dposV2:2.0.0",
+            "init": {
+                "params": {
+                    "validatorCount": "21",
+                    "electionCycleLength": "604800"
+                },
+                "validators": [
+                    {
+                        "pubKey": "v0vjBRdJihUouyfoqFI55fPreqLYYlUYfSYub6BhumE=",
+                        "power": "10"
+                    }
+                ]
+            }
+        },
+        {
+            "vm": "plugin",
+            "format": "plugin",
+            "name": "addressmapper",
+            "location": "addressmapper:0.1.0",
+            "init": null
+        },
+        {
+            "vm": "plugin",
+            "format": "plugin",
+            "name": "tron-gateway",
+            "location": "tron-gateway:0.1.0",
+            "init": {
+                "owner": {
+                    "chain_id": "default",
+                    "local": "kQid61xWyD0s1aVxZhB2Yf3zdZ4="
+                },
+                "oracles": [
+                    {
+                        "chain_id": "default",
+                        "local": "fVpkXRxvmNrn1a1Nv1h5lHuiFYU="
+                    }
+                ]
+            }
+        },
+        {
+            "vm": "plugin",
+            "format": "plugin",
+            "name": "chainconfig",
+            "location": "chainconfig:1.0.0",
+            "init": {
+                "owner": {
+                    "chainId": "default",
+                    "local": "kQid61xWyD0s1aVxZhB2Yf3zdZ4="
+                },
+                "params": {
+                    "voteThreshold": "67",
+                    "numBlockConfirmations": "5"
+                },
+                "features": [
+                    {
+                        "name": "test",
+                        "status": "WAITING"
+                    },
+                    {
+                        "name":"auth:sigtx:eth",
+                        "status":"WAITING"
+                    },
+                    {
+                        "name":"auth:sigtx:tron",
+                        "status":"WAITING"
+                    }
+                ]
+            }
+        }
+    ]
+}
