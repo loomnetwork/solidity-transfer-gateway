@@ -1,6 +1,6 @@
-# Transfer Gateway V2
+# Transfer Gateway Solidity Contracts
 
-A transfer gateway which supports ETH, ERC20 and ERC721 tokens.
+These transfer gateway contracts support deposit & withdrawal of ETH, ERC20, ERC721, and ERC721X tokens.
 
 # Setup locally
 
